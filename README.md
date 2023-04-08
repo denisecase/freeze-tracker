@@ -174,3 +174,7 @@ in the Justfile.
 - consider overlaying
 - add historical event dates
 
+## Preview
+
+![Initial Insights](images/initial.PNG)
+
