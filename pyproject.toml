@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "freeze-tracker"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[dependencies] 
+  python = '^3.10'
+  pandas = '^2.0'
+  plotly = '^5.14'
+  bokeh = '^2.4'
+  dash = '^2.0'
+  dash-dependencies = '^2.0'
+  gunicorn  = '^20.1'
+  python-dotenv = '^1.0'
+  requests = '^2.26'
+
+[project.optional-dependencies]
+dev = [
+  "black",
+  "dash",
+  "pyright",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "sphinx"
+]
+
+[tool.black]
+line-length = 88
+extend-exclude = '''
+/(
+  | .env
+  | .venv
+  | venv
+  | notebooks
+)/
+'''
+
+[tool.pyright]
+venvPath = "./venv"
+pythonVersion = "3.11"
+reportMissingTypeStubs = false
+reportUntypedFunction = true
+
+[tool.ruff]
+# Never enforce `E501` (line length violations).
+ignore = ["E501"]
+# Ignore `E402` (import violations) in all `__init__.py` files, and in `path/to/file.py`.
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["E402"]
+"*.py" = ["E402"]
+
+[tool.sphinx-autobuild]
+watch = ["./docs"]
+ignore = ["./docs/_build"]
+open-browser = false
+
+[tool.sphinx]
+project = "Freeze Tracker"
+version = "0.1"
+release = "0.1.0"
+config-dir = "docs"
+source-dir = "src"
+build-dir = "docs/_build"
+master-doc = "index"
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode"
+]
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+html_theme = "alabaster"
+html_static_path = ["_static"]
+htmlhelp_basename = "FreezeTrackerdoc"
+autodoc_mock_imports = ["pandas"]
+napoleon_google_docstring = true
+napoleon_numpy_docstring = true
+napoleon_use_param = true
+napoleon_use_ivar = true
+napoleon_include_init_with_doc = true
+viewcode_follow_imported_members = true
