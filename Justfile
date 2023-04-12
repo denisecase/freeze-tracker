@@ -10,6 +10,9 @@
 # use PowerShell instead of sh:
 set shell := ["powershell.exe", "-c"]
 
+default:
+    just --list
+
 # Install for production
 install:
     python -m pip install --upgrade pip
@@ -18,13 +21,14 @@ install:
     python -m pip install --upgrade pandas
     python -m pip install --upgrade python-dotenv
     python -m pip install -e . 
+    poetry install
 
 # Install for development
-install-dev: 
+idev: install
     python -m pip install  -e ".[dev]" 
 
 # Install all
-install-all: install install-dev
+iall: install idev
 
 # Dump installed packages to requirements.txt
 freeze:
@@ -40,7 +44,7 @@ clean:
     if (Test-Path **/__pycache__) { Remove-Item **/__pycache__ -Recurse -Force }
     if (Test-Path build) { Remove-Item build -Recurse -Force }
     if (Test-Path dist) { Remove-Item dist -Recurse -Force }
-    if (Test-Path htmlcov) { Remove-Item htmlcov -Recurse -Force }
+    if (Test-Path htmlcov/) { Remove-Item htmlcov/ -Recurse -Force }
     if (Test-Path docs/_build) { Remove-Item docs/_build -Recurse -Force }
     if (Test-Path .coverage) { Remove-Item .coverage -Force }
     if (Test-Path coverage.xml) { Remove-Item coverage.xml -Force }
@@ -57,9 +61,14 @@ format:
     ruff . --fix
     black .
 
+sort:
+    isort pyproject.toml
+
+
 # Run tests
 test:
-    pytest --cov=src --cov-report xml --log-level=WARNING --disable-pytest-warnings
+    source .venv/bin/activate &&
+    pytest tests/ --cov=src --cov-report xml --log-level=WARNING --disable-pytest-warnings
 
 # Run checks (ruff + test)
 check:
@@ -75,9 +84,17 @@ coverage: test
 docs:
     sphinx-build -c pyproject.toml -b html docs docs/_build
 
+# import raw hourly data
+import:
+    python src/import_hourly.py
+
+# make years of daily data
+years:
+    python src/make_years.py
+
 # Try the visualization
 viz:
-	python src/daily_visualization.py
+	python src/visualization.py
 
 # Run the dashboard
 run:
@@ -85,3 +102,8 @@ run:
 
 start:
     gunicorn dashboard:app
+
+# generate the dashboard for GitHub Pages
+gen:
+    python src/dashboard.py --export --output-file docs/dashboard.html --debug
+

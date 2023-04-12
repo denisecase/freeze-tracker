@@ -3,6 +3,12 @@
 Freeze Tracker is a Python project for tracking daily temperature data
 in Ely Minnesota.
 
+In progress 
+
+![Cold loading](images/Fig1.PNG)
+
+![Both - 3 most recent](images/Fig2.PNG)
+
 ## Recommended
 
 - VS Code
@@ -88,13 +94,42 @@ python -m venv .venv
 
 ## When Starting a Session
 
-Activate virtual environment.
+Activate virtual environment. Use right arrow to accept suggested command.
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
 To deactivate, just run `deactivate`.
+
+## Pip Install Poetry
+
+C:\Users\username\AppData\Local\Programs\Python\Python310\Lib\site-packages
+
+```
+pip install poetry
+poetry check
+poetry install
+```
+
+Prefer Poetry over simplier hatch.
+
+Common Poetry commands:
+
+- `poetry add <package>`: adds a package to the project's dependencies and updates the pyproject.toml file
+- `poetry install`: installs the project's dependencies based on the pyproject.toml file
+- `poetry update`: updates the project's dependencies in the pyproject.toml file and installs the updated packages
+- `poetry build`: builds a package distribution, such as a wheel or tarball
+- `poetry publish`: publishes the package distribution to a package repository such as PyPI
+- `poetry run`: runs a command within the project's virtual environment
+- `poetry shell`: activates the project's virtual environment in the current shell
+- `poetry check`: checks the pyproject.toml file for errors or potential issues
+- `poetry lock`: generates a lock file (poetry.lock) which specifies exact versions of all dependencies
+- `poetry export`: generates a requirements.txt file based on the current environment
+- `poetry show`: shows information about installed packages or a specific package
+
+You can see a full list of commands by running `poetry --help`.
+
 
 ## Development
 
@@ -139,12 +174,21 @@ on the machine has their own Python to customize without affecting other users.
 If you did not change the installation location during Python installation, 
 it's likely that Python installed in the default location.
 
-## Pip Install hatchling
-
-C:\Users\username\AppData\Local\Programs\Python\Python310\Lib\site-packages
+## pip check
 
 ```
-pip install hatchling
+pip install pip-tools
+pip list --outdated --format=columns
+pip-check
+```
+
+
+
+## Checking Versions and Updating
+
+```
+ruff --version
+poetry update ruff
 ```
 
 `python -m pip install`  ensures that pip is installed 
@@ -165,6 +209,10 @@ distributing Python packages.
 
 `just install` uses the Just command runner to run the install recipe defined
 in the Justfile. 
+
+## Plotly Dash
+
+- [Dash](https://dash.plotly.com/)
 
 
 ## TODO
