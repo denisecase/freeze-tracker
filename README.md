@@ -1,9 +1,8 @@
 # Freeze Tracker
 
-Freeze Tracker is a Python project for tracking daily temperature data
-in Ely Minnesota.
+Freeze Tracker is a Python project for tracking freeze issues in Ely, Minnesota.
 
-In progress 
+_This repo is under active development_ 
 
 ![Cold loading](images/Fig1.PNG)
 
@@ -24,46 +23,13 @@ for convenience and repeatability.
 This helps to automate common development tasks and ensures 
 consistency in the project's workflow.
 
-## VS Code Environment
-
-After adding a dependency to pyproject.toml, 
-VS will display a blue "Environment" button. 
-Click this, choose your virtual environment (.venv),
-choose your Python interpreter, and 
-check all the boxes.
-
-## Schedule the daily_updater.py script
-
-To run the Python `daily_updater.py` script daily on Windows, 
-use the Windows Task Scheduler. 
-
-- Open "Task Scheduler"
-- Select "Create Task"
-- Set name to "Run freeze-tracker src daily_updater to get Ely temp at 6 AM".
-- Select "Run whether user is logged on or not".
-- Check "Run with highest privileges".
-- Go to "Triggers" tab, click "New".
-- Select "Daily", and set time to 6 a.m.
-- Go to "Actions" tab, select "New", and choose "Start a program"
-- Enter full path to `.venv/Scripts/python.exe` in "Program/script" field
-- Enter full path to `daily_updater.py` script in the "Add arguments" field
-- Go to "Conditions" tab. Set conditions as you like. 
-- e.g., check "wake to run"
-- e.g., check "start only if any network connection available
-
-Example .venv path - use this path to executable:
-- C:\Users\USERNAME\Documents\freeze-tracker\.venv\Scripts\python.exe
-
-Example .py path - use this path for the argument:
-- C:\Users\USERNAME\Documents\freeze-tracker\src\daily_updater.py
-
 ## Historical Data (Year starts July 1)
 
-Weather Underground for Hibbing provides the data.
+Weather Underground for Hibbing provides some data.
 
 - https://www.wunderground.com/history/monthly/us/mn/hibbing/KHIB/date/2023-4
 
-NOAA information for Ely, MN was not available.
+NOAA information for Ely, MN was available with help from the NOAA staff.
 
 - https://www.ncei.noaa.gov/access/past-weather/
 - https://www.ncdc.noaa.gov/cdo-web/datasets
@@ -72,9 +38,24 @@ NOAA information for Ely, MN was not available.
 - Network:ID	GHCND:USR0000MELY
 - Latitude/Longitude	47.8833°, -91.8667° Elevation	443.5 m
 
-## One-Time Setup: Install Just
+MN provides frost/freeze data by county. For St. Louis County, it's from Orr.
 
-To install the Just command runner on Windows using Chocolatey:
+https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html
+
+
+## Installation
+
+Install some content globally for best results. 
+Install these to your default Python:
+
+```shell
+python --version
+python -m pip install --upgrade pip
+python -m pip install panel panel[pyodide] hvplot jupyterlab
+python -m pip install black ruff
+```
+
+Install the Just command runner. For example, on Windows using Chocolatey:
 
 1. Open PowerShell Core as an Administrator
 2. Run the following command: `choco install just -y`
@@ -84,89 +65,52 @@ it's important to run this command in PowerShell Core.
 When using Just in VS Code, 
 remember to choose the PowerShell Core Terminal.
 
-## Create Virtual Environment
+## Create a Virtual Environment
 
-Create a virtual environment in a .venv folder.
-
-```powershell
+```shell
 python -m venv .venv
 ```
 
-## When Starting a Session
+When VS Code Python Extension offers to select the Environment, say Yes.
 
-Activate virtual environment. Use right arrow to accept suggested command.
+## Activate the Virtual Environment
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+Activate it on Windows: `.venv\Scripts\activate`
 
-To deactivate, just run `deactivate`.
+Activate it on macOS/Linux `source .venv/bin/`
 
-## Pip Install Poetry
+To deactivate, run `deactivate`.
 
-C:\Users\username\AppData\Local\Programs\Python\Python310\Lib\site-packages
+## Install Dependencies
 
-```
-pip install poetry
-poetry check
-poetry install
-```
-
-Prefer Poetry over simplier hatch.
-
-Common Poetry commands:
-
-- `poetry add <package>`: adds a package to the project's dependencies and updates the pyproject.toml file
-- `poetry install`: installs the project's dependencies based on the pyproject.toml file
-- `poetry update`: updates the project's dependencies in the pyproject.toml file and installs the updated packages
-- `poetry build`: builds a package distribution, such as a wheel or tarball
-- `poetry publish`: publishes the package distribution to a package repository such as PyPI
-- `poetry run`: runs a command within the project's virtual environment
-- `poetry shell`: activates the project's virtual environment in the current shell
-- `poetry check`: checks the pyproject.toml file for errors or potential issues
-- `poetry lock`: generates a lock file (poetry.lock) which specifies exact versions of all dependencies
-- `poetry export`: generates a requirements.txt file based on the current environment
-- `poetry show`: shows information about installed packages or a specific package
-
-You can see a full list of commands by running `poetry --help`.
-
-
-## Development
-
-Use Justfile recipes as needed.
+Install dependencies from pyproject.toml. The -e flag installs in editable mode.
+Editable mode allows making changes to the source code and having those changes
+reflected in the installed package without having to reinstall the package.
 
 ```powershell
-(.venv)> just install
-(.venv)> just install-dev
-(.venv)> just install-all
-(.venv)> just clean
-(.venv)> just format
-(.venv)> just check
-(.venv)> just test
-(.venv)> just coverage
-(.venv)> just viz
-(.venv)> just run
+python -m pip install --upgrade pip build setuptools wheel 
+just install
 ```
 
-View dashboard (just run) at http://127.0.0.1:8050/
-
-Note: 
-
-If installation fails for any package, install it explicitly in (.venv)> 
+## Run the Main App
 
 ```powershell
-(.venv)> python -m pip install python-dotenv
+cd src/freezetracker
+panel serve --show app.py
 ```
 
-After doing so, you can deactivate the .venv, delete the .venv folder, 
-recreate and reactivate .venv, and the just install-all should work. 
+## Convert the Main App
+
+```powershell
+panel convert app.py --to pyodide-worker --out docs
+```
 
 ## Python Notes 
 
-Default Python 3.10 paths on Windows:
+Default Python 3.11 paths on Windows:
 
-- C:\Program Files\Python310\python.exe
-- C:\Users\USERNAME\AppData\Local\Programs\Python\Python310\python.exe
+- C:\Program Files\Python311\python.exe
+- C:\Users\USERNAME\AppData\Local\Programs\Python\Python311\python.exe
 
 The official Python installer for Windows 
 has a default installation location in AppData to ensure each user 

@@ -15,20 +15,7 @@ default:
 
 # Install for production
 install:
-    python -m pip install --upgrade pip
-    python -m pip install --upgrade setuptools
-    python -m pip install --upgrade wheel
-    python -m pip install --upgrade pandas
-    python -m pip install --upgrade python-dotenv
-    python -m pip install -e . 
-    poetry install
-
-# Install for development
-idev: install
-    python -m pip install  -e ".[dev]" 
-
-# Install all
-iall: install idev
+    python -m pip install -e .[dev] 
 
 # Dump installed packages to requirements.txt
 freeze:
@@ -57,12 +44,13 @@ ruff:
     ruff .
 
 # Format files using black
-format:
+format: sort
     ruff . --fix
     black .
 
 sort:
     isort pyproject.toml
+    isort .
 
 
 # Run tests

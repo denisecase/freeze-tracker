@@ -1,40 +1,65 @@
-[tool.poetry]
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "freeze-tracker"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Freeze Tracker"
+keywords = [
+  "python", "vscode", "panel"
+]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.11"
+dependencies = [
+  "bokeh",
+  "configparser",
+  "dash",
+  "dash-core-components",
+  "dash-html-components",
+  "faker",
+  "folium",
+  "geopandas",
+  "gunicorn",
+  "holoviews",
+  "hvplot",
+  "matplotlib",
+  "openpyxl",
+  "pandas",
+  "panel",
+  "plotly",
+  "pylightxl",
+  "python-dotenv",
+  "requests",
+  "scikit-learn",
+  "xgboost",
+  "yfinance"
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-pandas = "^2.0.0"
-plotly = "^5.14.0"
-bokeh = "^2.4.1"
-dash = "^2.0.0"
-dash-core-components = "^2.0.0"
-dash-html-components = "^2.0.0"
-gunicorn = "^20.1.0"
-python-dotenv = "^0.19.0"
-requests = "^2.26.0"
-openpyxl = "^3.0.8"
-configparser = "^5.1.0"
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+    "isort",
+    "pyright",
+    "pytest",
+    "pytest-cov",
+    "sphinx"
+]
 
-[tool.poetry.dev-dependencies]
-black = "^21.10b0"
-dash = "^2.0.0"
-isort = "^5.9.3"
-pyright = "^1.1.302"
-pytest = "^6.2.5"
-pytest-cov = "^3.0.0"
-ruff = "^0.0.261"
-sphinx = "^4.4.0"
-
-[build-system]
-requires = ["poetry-core>=1.1.0"]
-build-backend = "poetry.core.masonry.api"
+[project.urls]
+"Homepage" = "https://github.com/denisecase/freeze-tracker/"
+"Issues" = "https://github.com/denisecase/freeze-tracker/issues"
+"Pages" = "https://denisecase.github.io/freeze-tracker/"
 
 
 [tool.black]
-line-length = 88
+line-length = 100
 extend-exclude = '''
 /(
   | .env
@@ -43,6 +68,9 @@ extend-exclude = '''
   | notebooks
 )/
 '''
+
+[tool.isort]
+src_paths = ["src", "tests"]
 
 [tool.pyright]
 venvPath = "./venv"
@@ -57,6 +85,7 @@ ignore = ["E501"]
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["E402"]
 "*.py" = ["E402"]
+
 
 [tool.sphinx-autobuild]
 watch = ["./docs"]

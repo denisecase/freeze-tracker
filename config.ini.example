@@ -6,6 +6,3 @@ data_filename_raw = FromNOAA_3297412_Ely_Import.xlsx
 data_sheet_raw = FromNOAA_3297412
 data_filename_processed = daily_temps.csv
 data_filename_processed_short = daily_temps
-
-[api]
-OPEN_WEATHER_MAP_API_KEY = 76f226e1ae14bfec9055a729725ded37

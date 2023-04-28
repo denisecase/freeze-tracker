@@ -5,6 +5,7 @@
 
 # secret files
 .env
+config.ini
 
 .pytest_cache/
 .ruff_cache/

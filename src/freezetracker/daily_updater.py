@@ -9,12 +9,12 @@ temperature data.
 IN PROGRESS - NOT YET IMPLEMENTED
 """
 
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
+
 import requests
 from dotenv import load_dotenv
-import pandas as pd
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -46,12 +46,7 @@ def check_data_for_date(df, date):
     iyear = date.year
     imonth = date.month
     iday = date.day
-    return (
-        len(
-            df[(df["IYEAR"] == iyear) & (df["IMONTH"] == imonth) & (df["IDAY"] == iday)]
-        )
-        > 0
-    )
+    return len(df[(df["IYEAR"] == iyear) & (df["IMONTH"] == imonth) & (df["IDAY"] == iday)]) > 0
 
 
 def make_api_request_for_date(date):
@@ -75,7 +70,6 @@ def update_csv_file(csv_path, df):
 
 def daily_updater():
     """Run the daily updater."""
-
 
 
 if __name__ == "__main__":
