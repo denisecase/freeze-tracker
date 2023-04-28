@@ -4,6 +4,8 @@ Freeze Tracker is a Python project for tracking freeze issues in Ely, Minnesota.
 
 _This repo is under active development_ 
 
+Visit the site built with Panel and Web Assembly: [Freeze Tracker](https://denisecase.github.io/freeze-tracker/app.html)
+
 Opening Dashboard
 
 ![Dashboard1](images/Dashboard1.PNG)
