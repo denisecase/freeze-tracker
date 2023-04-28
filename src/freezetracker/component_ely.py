@@ -18,9 +18,8 @@ import configparser
 import pathlib
 
 import pandas as pd
-import plotly.express as px
 import panel as pn
-
+import plotly.express as px
 
 
 def get_data_frame(yearString):
@@ -32,9 +31,7 @@ def get_data_frame(yearString):
         data_path = root_path.joinpath("data")
         processed_data_path = data_path.joinpath("2_processed")
         fn_start = "daily_temps"
-        data_filename_processed = (
-            fn_start + "_" + yearString + ".csv"
-        )
+        data_filename_processed = fn_start + "_" + yearString + ".csv"
         f = processed_data_path.joinpath(data_filename_processed)
         print(f"Reading to processed data file {f}")
         df = pd.read_csv(f)
@@ -45,6 +42,7 @@ def get_data_frame(yearString):
     except Exception as e:
         print(f"Error reading data file: {e}")
 
+
 def read_config():
     """Read the configuration file"""
     print("Reading config file")
@@ -52,6 +50,7 @@ def read_config():
     config.read("config.ini")
     print(f"Config file has sections: {config.sections()}")
     return config
+
 
 def plot_cumulative_data(names, cumulative_types):
     # Check if the provided cumulative types are valid
@@ -81,6 +80,7 @@ def plot_cumulative_data(names, cumulative_types):
 
     # fig.show()
     return pn.pane.Plotly(fig, sizing_mode="stretch_both")
+
 
 def create_ely_aggregate():
     global config
@@ -131,6 +131,7 @@ def create_ely_aggregate():
     col_hot = pn.Column(figHot)
     component = pn.Row(col_cold, col_hot)
     return component
+
 
 if __name__ == "__main__":
     ely_aggregate = create_ely_aggregate()

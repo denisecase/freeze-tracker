@@ -99,7 +99,7 @@ cd src/freezetracker
 panel serve --show app.py
 ```
 
-## Convert the Main App
+## Convert the Main App to Host on GitHub Pages
 
 ```powershell
 panel convert app.py --to pyodide-worker --out docs

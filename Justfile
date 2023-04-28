@@ -64,34 +64,4 @@ check:
     black --check .
     pyright
 
-# Generate HTML coverage report
-coverage: test
-    coverage html
-
-# Generate Sphinx documentation
-docs:
-    sphinx-build -c pyproject.toml -b html docs docs/_build
-
-# import raw hourly data
-import:
-    python src/import_hourly.py
-
-# make years of daily data
-years:
-    python src/make_years.py
-
-# Try the visualization
-viz:
-	python src/visualization.py
-
-# Run the dashboard
-run:
-    python src/dashboard.py
-
-start:
-    gunicorn dashboard:app
-
-# generate the dashboard for GitHub Pages
-gen:
-    python src/dashboard.py --export --output-file docs/dashboard.html --debug
 
