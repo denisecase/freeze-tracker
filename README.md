@@ -114,7 +114,7 @@ panel serve --show app.py
 ## Convert the Main App to Host on GitHub Pages
 
 ```powershell
-panel convert app.py --to pyodide-worker --out docs
+panel convert app.py --to pyodide-worker --out .
 ```
 
 ## Python Notes 
