@@ -108,14 +108,9 @@ orr_temp_pane = pn.pane.Markdown("")
 def get_data_frame(yearString):
     """Read a file that starts with daily_temps_ into a data frame"""
     try:
-        pkg_path = pathlib.Path.cwd()
-        src_path = pkg_path.parent
-        root_path = src_path.parent
-        data_path = root_path.joinpath("data")
-        processed_data_path = data_path.joinpath("2_processed")
         fn_start = "daily_temps"
-        data_filename_processed = fn_start + "_" + yearString + ".csv"
-        f = processed_data_path.joinpath(data_filename_processed)
+        fname = fn_start + "_" + yearString + ".csv"
+        f = get_processed_file_path(fname)
         print(f"Reading to processed data file {f}")
         df = pd.read_csv(f)
         df["NAME"] = yearString
@@ -330,11 +325,19 @@ def create_custom_colormap():
     return cmap
 
 
+# def get_processed_file_path(fname):
+#     pkg_path = pathlib.Path.cwd()
+#     src_path = pkg_path.parent
+#     root_path = src_path.parent
+#     data_path = root_path.joinpath("data")
+#     processed_data_path = data_path.joinpath("2_processed")
+#     processed_file_path = processed_data_path.joinpath(fname)
+#     logger.info(f"Reading from file {processed_file_path}")
+#     return processed_file_path
+
 def get_processed_file_path(fname):
     pkg_path = pathlib.Path.cwd()
-    src_path = pkg_path.parent
-    root_path = src_path.parent
-    data_path = root_path.joinpath("data")
+    data_path = pkg_path.joinpath("data")
     processed_data_path = data_path.joinpath("2_processed")
     processed_file_path = processed_data_path.joinpath(fname)
     logger.info(f"Reading from file {processed_file_path}")
