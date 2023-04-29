@@ -7,18 +7,20 @@ In the directory where this file exists, run the following command:
 
     Hit CTRL C (at the same time) to stop
 
-    import hvplot.pandas is required for the charts to work
+    import hvplot.pandas is required for the charts to work 
+    - add noqa comment so linting and sorting don't remove it
 
 
 """
 import configparser
+import io
 import json
 import logging
 import pathlib
 from datetime import datetime
 
 import holoviews as hv
-import hvplot.pandas
+import hvplot.pandas # noqa
 import numpy as np
 import pandas as pd
 import panel as pn
@@ -37,6 +39,7 @@ logger.info("Starting Freeze Tracker Dashboard")
 
 # Define variables
 
+isWASMEnvironment = False #Set to True in Pyodide JS environment
 title_string = "Freeze Tracker Dashboard"
 footer_string = "2023"
 depth_file_name = "frost_depth.csv"
@@ -45,6 +48,7 @@ freeze_thaw_file_name = "frost_stlouis.csv"
 depth_file_name_out = "frost_depth_out.csv"
 span_file_name_out = "frost_span_out.csv"
 freeze_thaw_file_name_out = "frost_stlouis_out.csv"
+incidents_file_name = "incidents.csv"
 month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]
 month_names = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]
 city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
@@ -53,23 +57,19 @@ orr_temp_pane = pn.pane.Markdown("")
 
 # Define functions to create the components of the dashboard
 
+
 # Component Ely
 
 
 def get_data_frame(yearString):
-    """Read a file that starts with daily_temps_ into a data frame"""
-    try:
-        fn_start = "daily_temps"
-        fname = fn_start + "_" + yearString + ".csv"
-        f = get_processed_file_path(fname)
-        print(f"Reading to processed data file {f}")
-        df = pd.read_csv(f)
-        df["NAME"] = yearString
-        return df
-    except FileNotFoundError:
-        print(f"Error: Data file not found at {f}")
-    except Exception as e:
-        print(f"Error reading data file: {e}")
+    """Read a file that starts with daily_temps_ into a data frame
+    @ param yearString: string with the year range, e.g. "2019-2020
+    @ return: data frame with the data"""
+    fn_start = "daily_temps"
+    fname = fn_start + "_" + yearString + ".csv"
+    df = read_data_csv_file_processed(fname)
+    df["NAME"] = yearString
+    return df
 
 
 def read_config():
@@ -204,66 +204,12 @@ def get_current_orr_temp_pane():
         return pn.pane.Markdown(f"## Orr: {round(temp)}°F")
     else:
         return pn.pane.Markdown(" ")
-
-
-class FrostCharts(param.Parameterized):
-    def __init__(self, **params):
-        super().__init__(**params)
-        self.param.watch(self._update_charts, "winters")
-
-    winters = param.ListSelector(
-        default=[
-            "2010-2011",
-            "2011-2012",
-            "2012-2013",
-            "2013-2014",
-            "2014-2015",
-            "2015-2016",
-            "2016-2017",
-            "2017-2018",
-            "2018-2019",
-            "2019-2020",
-            "2020-2021",
-            "2021-2022",
-            "2022-2023",
-        ],
-        objects=[
-            "2010-2011",
-            "2011-2012",
-            "2012-2013",
-            "2013-2014",
-            "2014-2015",
-            "2015-2016",
-            "2016-2017",
-            "2017-2018",
-            "2018-2019",
-            "2019-2020",
-            "2020-2021",
-            "2021-2022",
-            "2022-2023",
-        ],
-        label="Winters",
-    )
-
-    @param.depends("winters", watch=False)
-    def depth_chart(self):
-        chart = create_frost_depth_chart(self.winters)
-        return pn.Column(chart, sizing_mode="stretch_both")
-
-    @param.depends("winters", watch=False)
-    def span_chart(self):
-        chart = create_frost_span_chart(self.winters)
-        return pn.Column(chart, sizing_mode="stretch_both")
-
-    def _update_charts(self, event):
-        self.depth_chart = self.create_frost_depth_chart()
-        self.span_chart = self.create_frost_span_chart()
-        self.freeze_thaw_charts = self.create_freeze_thaw_charts()
-
-    @property
-    def freeze_thaw_charts(self):
-        return create_freeze_thaw_charts(self.winters)
-
+    
+def get_current_temps_row():
+    return pn.Row(
+        get_current_ely_temp_pane(), 
+        get_current_orr_temp_pane()
+        )
 
 def create_custom_colormap():
     colors = ["green", "yellow", "red"]
@@ -271,20 +217,9 @@ def create_custom_colormap():
     return cmap
 
 
-def get_processed_file_path(fname):
-    pkg_path = pathlib.Path.cwd()
-    src_path = pkg_path.parent
-    root_path = src_path.parent
-    data_path = root_path.joinpath("data")
-    processed_data_path = data_path.joinpath("2_processed")
-    processed_file_path = processed_data_path.joinpath(fname)
-    logger.info(f"Reading from file {processed_file_path}")
-    return processed_file_path
-
-
 def prepare_freeze_thaw_chart_points():
     """Prepare the freeze and thaw chart points and save them to a CSV file."""
-    df = pd.read_csv(get_processed_file_path(freeze_thaw_file_name))
+    df = read_data_csv_file_processed(freeze_thaw_file_name)
     df = prepare_freeze_thaw_df(df)
     df.to_csv(get_processed_file_path(freeze_thaw_file_name_out), index=False)
     logger.info(f"Saved file {freeze_thaw_file_name_out}")
@@ -344,10 +279,48 @@ def prepare_span_df(df):
     df["line_color"] = df["Normalized_Duration"]
     return df
 
+def get_processed_file_path(fname):
+    pkg_path = pathlib.Path.cwd()
+    src_path = pkg_path.parent
+    root_path = src_path.parent
+    data_path = root_path.joinpath("data")
+    processed_data_path = data_path.joinpath("2_processed")
+    processed_file_path = processed_data_path.joinpath(fname)
+    logger.info(f"Reading from file {processed_file_path}")
+    return processed_file_path
+
+def read_data_csv_file_processed(fname):
+    github_repo = "freeze-tracker"
+    data_subfolder = "2_processed"
+    from_github = isWASMEnvironment
+    logger.info(f"Reading data from github: {from_github}")
+    if from_github:
+        try:
+            url = f"https://raw.githubusercontent.com/{github_repo}/main/data/{data_subfolder}/{fname}"
+            response = requests.get(url)
+            response.raise_for_status()
+            return pd.read_csv(io.StringIO(response.text))
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error reading from {url}: {e}")
+        except Exception as e:
+            print(f"Error reading from {url}: {e}")
+    else:
+        try:
+            full_path = get_processed_file_path(fname)
+            df = pd.read_csv(full_path)
+            # print column names
+            logger.info(f"Columns: {df.columns}")
+            logger.info(f"Read {len(df)} rows from {full_path}")
+            return df
+        except FileNotFoundError:
+            print(f"Error: Data file not found at {full_path}")
+        except Exception as e:
+            print(f"Error reading data file: {e}")
+
 
 def create_frost_depth_chart(selected_winters):
     """Create a chart of the max frost depth"""
-    df = pd.read_csv(get_processed_file_path(depth_file_name))
+    df = read_data_csv_file_processed(depth_file_name)
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
     # Normalize the 'Max_Frost_Depth_in' column to a range of 0-1 for color mapping
@@ -372,7 +345,10 @@ def create_frost_depth_chart(selected_winters):
     )
     # Add labels to each bar
     labels = hv.Labels(
-        [(val_x, val_y * 1.05, f"{val_y:.1f}") for val_x, val_y in zip(bars.data["Winter"], bars.data["Max_Frost_Depth_in"])],
+        [
+            (val_x, val_y * 1.05, f"{val_y:.1f}")
+            for val_x, val_y in zip(bars.data["Winter"], bars.data["Max_Frost_Depth_in"])
+        ],
         kdims=["x", "y"],
         vdims=["text"],
     ).opts(text_color="black", text_alpha=0.8, align="center")
@@ -384,7 +360,7 @@ def create_frost_depth_chart(selected_winters):
 
 def create_frost_span_chart(selected_winters):
     """Create a chart of the frost span"""
-    df = pd.read_csv(get_processed_file_path(span_file_name))
+    df = read_data_csv_file_processed(span_file_name)
     df = prepare_span_df(df)
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
@@ -432,18 +408,24 @@ def create_frost_span_chart(selected_winters):
         )
         chart *= month_line * month_text
 
-    # Add a vertical line for today based on days after July 1
+    # Add a blue vertical line for today based on days after July 1
     now = datetime.now()
-    start_year = now.year
-    if now.month >= 7:
-        start_year = now.year
-    else:
-        start_year = now.year - 1
-    today_days_after_Jul_1 = (now - datetime(start_year, 7, 1)).days
+    today_days_after_Jul_1 = get_days_after_Jul_1(now)
     today_line = hv.VLine(today_days_after_Jul_1).opts(
         line_color="blue", line_dash="dashed", line_width=2
     )
     chart = today_line * chart
+
+    # Add a red vertical line for each incident based on days after July 1
+    df = read_data_csv_file_processed(incidents_file_name)
+    logger.debug(f"incidents df.columns: {df.columns}")
+    for idx, row in df.iterrows():
+        incident_days_after_Jul_1 = get_days_after_Jul_1(row["Date"])
+        incident_line = hv.VLine(incident_days_after_Jul_1).opts(
+            line_color="red", line_dash="dashed", line_width=1
+        )
+        chart = incident_line * chart
+ 
 
     chart = chart.opts(hv.opts.Segments(color="line_color", cmap=cmap, line_width=10))
     chart = chart.redim.label(x="Days After July 1", y="Duration (Days)").opts(
@@ -453,15 +435,25 @@ def create_frost_span_chart(selected_winters):
         title="Frost Span (Orr, MN)",
         xlabel="Days After July 1",
         ylabel="Winter",
-        xlim=(0, 365),
+        xlim=(90, 365),
     )
     result = pn.Row(chart)
     return result
 
-   
+def get_days_after_Jul_1(date_string):
+    """Return the number of days after July 1 for the given date"""
+    date = pd.to_datetime(date_string)
+    if date.month >= 7:
+        start_year = date.year
+    else:
+        start_year = date.year - 1
+    today_days_after_Jul_1 = (date - datetime(start_year, 7, 1)).days
+    return today_days_after_Jul_1
+
+
 def create_freeze_thaw_charts(selected_winters):
     """Create charts of freeze and thaw lines"""
-    df = pd.read_csv(get_processed_file_path(freeze_thaw_file_name_out))
+    df = read_data_csv_file_processed(freeze_thaw_file_name_out)
     df = df[df["Winter"].isin(selected_winters)]
     grouped_df = df.groupby("Winter")
     winter_charts = []
@@ -530,17 +522,20 @@ def create_winters_multiselect_widget():
     )
     return widget
 
+
 def create_open_location_pane():
     pane = pn.pane.Markdown(
         '## [<span>Frost/Thaw (Orr, MN)</span>](https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html){target="_blank"}'
     )
     return pane
 
+
 def create_open_probabilities_pane():
     pane = pn.pane.Markdown(
         '## [<span>Probabilites (Ely, old)</span>](https://files.dnr.state.mn.us/natural_resources/climate/normals/freeze_dates/USC00212543.pdf){target="_blank"}'
     )
     return pane
+
 
 def create_panel_link_pane():
     pane = pn.pane.Markdown(
@@ -550,11 +545,11 @@ def create_panel_link_pane():
 
 
 def create_open_map_pane():
-    map_iframe = '''
+    map_iframe = """
     <a href="https://www.google.com/maps/search/?api=1&query=47.375285,-94.119340" target="_blank" style="display: block;">
      <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1383361.8983193361!2d-94.1193402928368!3d47.375285750004885!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1682733814424!5m2!1sen!2sus" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </a>
-    '''
+    """
     pane = pn.pane.HTML(map_iframe, height=180, width=240)
     return pane
 
@@ -562,15 +557,33 @@ def create_open_map_pane():
 def create_today_pane():
     now = datetime.now()
     formatted_date = now.strftime("%b %d, %Y")
-    pane = pn.pane.Markdown(f"# {formatted_date}")
+    pane = pn.pane.Markdown(f'<h2 style="color: blue;"> {formatted_date}</h2>')
     return pane
 
+def create_incident_pane(incident_date):
+    formatted_date = incident_date.strftime("%b %d, %Y")
+    pane = pn.pane.Markdown(f'<h3 style="color: red;"> {formatted_date}</h3>')
+    return pane
+
+def create_incidents_pane():
+    incidents = [
+        datetime(2022, 3, 31),
+        datetime(2022, 4, 23),
+        datetime(2023, 4, 15),
+    ]
+    incidents_pane = pn.Column(
+        pn.pane.Markdown("## Incidents"),
+        *[create_incident_pane(incident) for incident in incidents],
+        width_policy="max",
+        max_width=150
+    )
+    return incidents_pane
 
 def create_template_sidebar(winter_multiselect_widget):
     sidebar = pn.Column(
         create_today_pane(),
-        get_current_ely_temp_pane(),
-        get_current_orr_temp_pane(),
+        create_incidents_pane(),
+        get_current_temps_row(),
         winter_multiselect_widget,
         create_open_location_pane(),
         create_open_probabilities_pane(),
@@ -580,39 +593,104 @@ def create_template_sidebar(winter_multiselect_widget):
         max_width=150,
     )
     return sidebar
+class FrostCharts(param.Parameterized):
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.param.watch(self._update_charts, "winters")
 
-
-def create_template_main(selected_winters):
-    frost_charts = FrostCharts(winters=selected_winters)
-
-    depth_panel = frost_charts.depth_chart
-    span_panel = frost_charts.span_chart
-    top_row = pn.Row(depth_panel, span_panel, sizing_mode="stretch_both")
-
-    freeze_thaw_charts = frost_charts.freeze_thaw_charts
-    freeze_thaw_grid = pn.GridBox(
-        *freeze_thaw_charts,
-        ncols=3,
-        sizing_mode="stretch_both",
-        max_height=800,
+    winters = param.ListSelector(
+        default=[
+            "2010-2011",
+            "2011-2012",
+            "2012-2013",
+            "2013-2014",
+            "2014-2015",
+            "2015-2016",
+            "2016-2017",
+            "2017-2018",
+            "2018-2019",
+            "2019-2020",
+            "2020-2021",
+            "2021-2022",
+            "2022-2023",
+        ],
+        objects=[
+            "2010-2011",
+            "2011-2012",
+            "2012-2013",
+            "2013-2014",
+            "2014-2015",
+            "2015-2016",
+            "2016-2017",
+            "2017-2018",
+            "2018-2019",
+            "2019-2020",
+            "2020-2021",
+            "2021-2022",
+            "2022-2023",
+        ],
+        label="Winters",
     )
-    ely_aggregate = create_ely_aggregate()
-    main_panel = pn.Column(top_row, freeze_thaw_grid, ely_aggregate)
-    return main_panel
+
+    @param.depends("winters")
+    def depth_chart(self):
+        chart = create_frost_depth_chart(self.winters)
+        return pn.Column(chart, sizing_mode="stretch_both")
+
+    @param.depends("winters")
+    def span_chart(self):
+        chart = create_frost_span_chart(self.winters)
+        return pn.Column(chart, sizing_mode="stretch_both")
+    
+    @param.depends("winters")
+    def freeze_thaw_charts(self):
+        return create_freeze_thaw_charts(self.winters)
+
+    @param.depends('winters', watch=True)
+    def _update_charts(self, event):
+        self.depth_chart = self.depth_chart()
+        self.span_chart = self.span_chart()
+        self.freeze_thaw_charts = self.freeze_thaw_charts()
+
+def create_template_main(winter_multiselect_widget):
+    '''Returns a panel that reacts to changes in the winter_multiselect_widget'''
+    frost_charts = FrostCharts(winters=winter_multiselect_widget.value)
+
+    @pn.depends(winter_multiselect_widget.param.value, watch=True)
+    def create_main_panel(selected_winters):
+        frost_charts.winters = selected_winters
+
+        depth_panel = frost_charts.depth_chart
+        span_panel = frost_charts.span_chart
+        top_row = pn.Row(depth_panel, span_panel, sizing_mode="stretch_both")
+
+        freeze_thaw_charts = frost_charts.freeze_thaw_charts()  
+        freeze_thaw_grid = pn.GridBox(
+            *freeze_thaw_charts,
+            ncols=3,
+            sizing_mode="stretch_both",
+            max_height=800,
+        )
+        ely_aggregate = create_ely_aggregate()
+        main_panel = pn.Column(top_row, freeze_thaw_grid, ely_aggregate)
+
+        return main_panel
+
+    return create_main_panel
+
 
 
 def create_dashboard():
     winter_multiselect_widget = create_winters_multiselect_widget()
-    template_main = create_template_main(selected_winters=winter_multiselect_widget.value)
+    template_main = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
     dashboard = pn.template.FastListTemplate(
         title=title_string,
         favicon="favicon.ico",
         sidebar=create_template_sidebar(winter_multiselect_widget),
-        main=template_main,
+        main=template_main,  # Remove the parentheses here
     )
-    frost_charts = FrostCharts()
-    pn.bind(frost_charts, "winters", winter_multiselect_widget)
     return dashboard
+
 
 
 def update_temperatures():
@@ -631,4 +709,6 @@ def main():
     # Start serving the dashboard
     dashboard.servable()
 
+
 main()
+

@@ -1,4 +1,5 @@
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js");
+import { get_processed_file_path, fetchCSVFile } from './appDataFetcher.js';
 
 function sendPatch(patch, buffers, msg_id) {
   self.postMessage({

@@ -124,7 +124,13 @@ In app.html (about line 64), add the following.
 <script type="text/javascript" src="appDataFetcher.js"></script>
 ```
 
-In app.js replace about 7 occurances of:
+In app.js, add this at the top:
+
+```javascript
+import { get_processed_file_path, fetchCSVFile } from './appDataFetcher.js';
+
+
+ replace about 7 occurances of:
 
 `get_processed_file_path` with `getProcessedFilePath`.
 
