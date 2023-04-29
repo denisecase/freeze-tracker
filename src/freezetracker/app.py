@@ -66,9 +66,6 @@ def is_WASM() -> bool:
     else:
         return False
 
-# Component Ely
-
-
 def get_data_frame(yearString):
     """Read a file that starts with daily_temps_ into a data frame
     @ param yearString: string with the year range, e.g. "2019-2020
@@ -83,23 +80,25 @@ def read_config() -> Union[configparser.ConfigParser, None]:
     """Read the configuration file"""
     github_repo = "freeze-tracker"
     fname = "config.ini"
+    username = "denisecase"
     from_github = is_WASM()
     print(f"Reading data from github: {from_github}")
     if from_github:
         try:
-            url = f"https://raw.githubusercontent.com/{github_repo}/main/{fname}"
+            # "https://raw.githubusercontent.com/denisecase/freeze-tracker/main/config.ini"
+            url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/{fname}"
             response = requests.get(url)
             response.raise_for_status()
             content = response.text
             config = configparser.ConfigParser()
             config.read_string(content)
-            print(f"Config file found at {url}")
-            print(f"Config file has sections: {config.sections()}")
+            logger.info(f"Config file found at {url}")
+            logger.info(f"Config file has sections: {config.sections()}")
             return config
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP Error reading from {url}: {e}")
+            logger.error(f"HTTP Error reading from {url}: {e}")
         except Exception as e:
-            print(f"Error reading from {url}: {e}")
+            logger.error(f"Error reading from {url}: {e}")
     else:
         try:
             pkg_path = pathlib.Path.cwd()
@@ -108,13 +107,13 @@ def read_config() -> Union[configparser.ConfigParser, None]:
             full_path = root_path.joinpath(fname)
             config = configparser.ConfigParser()
             config.read(full_path)
-            print(f"Config file found at {full_path}")
-            print(f"Config file has sections: {config.sections()}")
+            logger.info(f"Config file found at {full_path}")
+            logger.info(f"Config file has sections: {config.sections()}")
             return config
         except FileNotFoundError:
-            print(f"Error: Data file not found at {full_path}")
+            logger.error(f"Error: Data file not found at {full_path}")
         except Exception as e:
-            print(f"Error reading data file: {e}")
+            logger.error(f"Error reading data file: {e}")
  
 
 def plot_cumulative_data(names, cumulative_types):
@@ -323,11 +322,12 @@ def get_processed_file_path(fname):
 def read_data_csv_file_processed(fname):
     github_repo = "freeze-tracker"
     data_subfolder = "2_processed"
+    username = "denisecase"
     from_github = is_WASM()
     logger.info(f"Reading data from github: {from_github}")
     if from_github:
         try:
-            url = f"https://raw.githubusercontent.com/{github_repo}/main/data/{data_subfolder}/{fname}"
+            url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/data/{data_subfolder}/{fname}"
             response = requests.get(url)
             response.raise_for_status()
             return pd.read_csv(io.StringIO(response.text))
