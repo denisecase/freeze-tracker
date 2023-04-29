@@ -29,6 +29,7 @@ import panel as pn
 import param
 import plotly.express as px
 import requests
+from bokeh.document import Document
 from matplotlib.colors import LinearSegmentedColormap
 from holoviews import Options, dim, opts # noqa
 
@@ -61,10 +62,13 @@ orr_temp_pane = pn.pane.Markdown("")
 
 def is_WASM() -> bool:
     """Determine if the environment is WASM or local."""
-    if sys.platform == 'browser':
-        return True
-    else:
-        return False
+    try:
+        if Document().__dict__.get("_document") is not None:
+            return True
+    except AttributeError:
+        pass
+
+    return False
 
 def get_data_frame(yearString):
     """Read a file that starts with daily_temps_ into a data frame
