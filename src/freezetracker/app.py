@@ -255,11 +255,6 @@ class FrostCharts(param.Parameterized):
         chart = create_frost_span_chart(self.winters)
         return pn.Column(chart, sizing_mode="stretch_both")
 
-    # @param.depends("winters", watch=False)
-    # def freeze_thaw_charts(self):
-    #     chart = create_freeze_thaw_charts(self.winters)
-    #     return pn.Column(chart, sizing_mode="stretch_both")
-
     def _update_charts(self, event):
         self.depth_chart = self.create_frost_depth_chart()
         self.span_chart = self.create_frost_span_chart()
@@ -276,19 +271,11 @@ def create_custom_colormap():
     return cmap
 
 
-# def get_processed_file_path(fname):
-#     pkg_path = pathlib.Path.cwd()
-#     src_path = pkg_path.parent
-#     root_path = src_path.parent
-#     data_path = root_path.joinpath("data")
-#     processed_data_path = data_path.joinpath("2_processed")
-#     processed_file_path = processed_data_path.joinpath(fname)
-#     logger.info(f"Reading from file {processed_file_path}")
-#     return processed_file_path
-
 def get_processed_file_path(fname):
     pkg_path = pathlib.Path.cwd()
-    data_path = pkg_path.joinpath("data")
+    src_path = pkg_path.parent
+    root_path = src_path.parent
+    data_path = root_path.joinpath("data")
     processed_data_path = data_path.joinpath("2_processed")
     processed_file_path = processed_data_path.joinpath(fname)
     logger.info(f"Reading from file {processed_file_path}")
@@ -359,7 +346,7 @@ def prepare_span_df(df):
 
 
 def create_frost_depth_chart(selected_winters):
-    """Create a chart of the frost depth"""
+    """Create a chart of the max frost depth"""
     df = pd.read_csv(get_processed_file_path(depth_file_name))
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
@@ -376,7 +363,7 @@ def create_frost_depth_chart(selected_winters):
         y="Max_Frost_Depth_in",
         c="Normalized_Depth",
         cmap=cmap,
-        title="Max Frost Depth (Orr, MN) Avg: {:.1f} in".format(avg_depth),
+        title="Max Frost Depth (Orr, MN) Avg: {:.0f} in".format(avg_depth),
         xlabel="Winter",
         ylabel="Max Frost Depth (in)",
         width=600,
@@ -384,16 +371,13 @@ def create_frost_depth_chart(selected_winters):
         rot=90,
     )
     # Add labels to each bar
-    segments = hv.Segments(
-        [
-            (val_x, val_y, val_x, val_y * 1.05, f"{val_y:.1f}")
-            for val_x, val_y in zip(bars.data["Winter"], bars.data["Max_Frost_Depth_in"])
-        ],
-        kdims=["x0", "y0", "x1", "y1"],
-        vdims=["label"],
-    ).opts(line_color="black", line_alpha=0.8, align="center")
+    labels = hv.Labels(
+        [(val_x, val_y * 1.05, f"{val_y:.1f}") for val_x, val_y in zip(bars.data["Winter"], bars.data["Max_Frost_Depth_in"])],
+        kdims=["x", "y"],
+        vdims=["text"],
+    ).opts(text_color="black", text_alpha=0.8, align="center")
 
-    chart = bars * segments
+    chart = bars * labels
     result = pn.Row(chart)
     return result
 
@@ -450,11 +434,16 @@ def create_frost_span_chart(selected_winters):
 
     # Add a vertical line for today based on days after July 1
     now = datetime.now()
-    today_days_after_Jul_1 = (now - datetime(now.year, 7, 1)).days
+    start_year = now.year
+    if now.month >= 7:
+        start_year = now.year
+    else:
+        start_year = now.year - 1
+    today_days_after_Jul_1 = (now - datetime(start_year, 7, 1)).days
     today_line = hv.VLine(today_days_after_Jul_1).opts(
         line_color="blue", line_dash="dashed", line_width=2
     )
-    chart *= today_line
+    chart = today_line * chart
 
     chart = chart.opts(hv.opts.Segments(color="line_color", cmap=cmap, line_width=10))
     chart = chart.redim.label(x="Days After July 1", y="Duration (Days)").opts(
@@ -469,78 +458,7 @@ def create_frost_span_chart(selected_winters):
     result = pn.Row(chart)
     return result
 
-    # """Create a chart of the frost span"""
-    # df = pd.read_csv(get_processed_file_path(span_file_name))
-    # df = prepare_span_df(df)
-    # df = df[df["Winter"].isin(selected_winters)]
-    # cmap = create_custom_colormap()
-    # df.groupby("Winter")
-    # segments = []
-    # for idx, row in df.iterrows():
-    #     start_text = hv.Text(
-    #         row["days_after_Jul_1"],
-    #         row["Winter"],
-    #         "{:%b %#d}  ".format(row["Frost_Start"]),
-    #         halign="right",
-    #         fontsize=8,
-    #     )
-    #     end_text = hv.Text(
-    #         row["days_after_Jul_1"] + row["Duration_days"],
-    #         row["Winter"],
-    #         "  {:%b %#d}".format(row["Frost_End"]),
-    #         halign="left",
-    #         fontsize=8,
-    #     )
-    #     segment_data = [
-    #         {
-    #             "x0": row["days_after_Jul_1"],
-    #             "x1": row["days_after_Jul_1"] + row["Duration_days"],
-    #             "y0": row["Winter"],
-    #             "y1": row["Winter"],
-    #             "line_color": row["line_color"],
-    #             "start_date": row["Frost_Start"].strftime("%Y-%m-%d"),
-    #             "end_date": row["Frost_End"].strftime("%Y-%m-%d"),
-    #         }
-    #     ]
-    #     segment = hv.Segments(
-    #         segment_data,
-    #         kdims=["x0", "y0", "x1", "y1"],
-    #         vdims=["line_color", "start_date", "end_date"],
-    #     )
-    #     segments.append(segment * start_text * end_text)
-
-    # # Add vertical lines and month labels
-    # chart = hv.Overlay(segments)
-    # for i, month_start in enumerate(month_starts):
-    #     month_line = hv.VLine(month_start).opts(line_color="gray", line_dash="dashed", line_width=1)
-    #     month_text = hv.Text(month_start + 15, df["Winter"].min(), month_names[i]).opts(
-    #         text_font_size="8pt", align="center"
-    #     )
-    #     chart *= month_line * month_text
-
-    # # Add a vertical line for today based on days after July 1
-    # # use matplotlib.dates.date2num
-    # now = datetime.now()
-    # today_days_after_Jul_1 = date2num(now) - date2num(now.replace(month=7, day=1))
-    # today_line = hv.VLine(today_days_after_Jul_1).opts(line_color="blue", line_dash="dashed", line_width=2)
-    # chart *= today_line
-
-    # chart = chart.opts(hv.opts.Segments(color="line_color", cmap=cmap, line_width=10))
-    # chart = chart.redim.label(x="Days After July 1", y="Duration (Days)").opts(
-    #     width=800, height=400
-    # )
-    # #hover = HoverTool(tooltips=[("Start Date", "@start_date"), ("End Date", "@end_date")])
-    # chart = chart.opts(
-    #     title="Frost Span (Orr, MN)",
-    #     xlabel="Days After July 1",
-    #     ylabel="Winter",
-    #     xlim=(0, 365),
-    #     #tools=[hover]
-    # )
-    # result = pn.Row(chart)
-    # return result
-
-
+   
 def create_freeze_thaw_charts(selected_winters):
     """Create charts of freeze and thaw lines"""
     df = pd.read_csv(get_processed_file_path(freeze_thaw_file_name_out))
@@ -612,22 +530,38 @@ def create_winters_multiselect_widget():
     )
     return widget
 
+def create_open_location_pane():
+    pane = pn.pane.Markdown(
+        '## [<span>Frost/Thaw (Orr, MN)</span>](https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html){target="_blank"}'
+    )
+    return pane
+
+def create_open_probabilities_pane():
+    pane = pn.pane.Markdown(
+        '## [<span>Probabilites (Ely, old)</span>](https://files.dnr.state.mn.us/natural_resources/climate/normals/freeze_dates/USC00212543.pdf){target="_blank"}'
+    )
+    return pane
 
 def create_panel_link_pane():
-    pane = pn.pane.Markdown("## [Panel](https://panel.holoviz.org/index.html)")
+    pane = pn.pane.Markdown(
+        '## [<span>Explore Panel</span>](https://panel.holoviz.org/index.html){target="_blank"}'
+    )
     return pane
 
 
-def create_location_pane():
-    pane = pn.pane.Markdown(
-        "## [Orr, MN](https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html)"
-    )
+def create_open_map_pane():
+    map_iframe = '''
+    <a href="https://www.google.com/maps/search/?api=1&query=47.375285,-94.119340" target="_blank" style="display: block;">
+     <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1383361.8983193361!2d-94.1193402928368!3d47.375285750004885!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1682733814424!5m2!1sen!2sus" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </a>
+    '''
+    pane = pn.pane.HTML(map_iframe, height=180, width=240)
     return pane
 
 
 def create_today_pane():
     now = datetime.now()
-    formatted_date = now.strftime("%b %d")
+    formatted_date = now.strftime("%b %d, %Y")
     pane = pn.pane.Markdown(f"# {formatted_date}")
     return pane
 
@@ -638,8 +572,10 @@ def create_template_sidebar(winter_multiselect_widget):
         get_current_ely_temp_pane(),
         get_current_orr_temp_pane(),
         winter_multiselect_widget,
-        create_location_pane(),
+        create_open_location_pane(),
+        create_open_probabilities_pane(),
         create_panel_link_pane(),
+        create_open_map_pane(),
         width_policy="max",
         max_width=150,
     )
@@ -689,7 +625,7 @@ def main():
     dashboard = create_dashboard()
 
     # Update the temperatures every 5 minutes using a callback
-    callback_interval = 5 * 60 * 1000  # in milliseconds (5 minutes)
+    callback_interval = 15 * 60 * 1000  # in milliseconds (15 minutes)
     pn.state.add_periodic_callback(update_temperatures, callback_interval)
 
     # Start serving the dashboard
