@@ -117,23 +117,6 @@ panel serve --show app.py
 panel convert app.py --to pyodide-worker --out .
 ```
 
-In app.html (about line 64), add the following.
-
-```html
-<!--DATA FETCHER -->
-<script type="text/javascript" src="appDataFetcher.js"></script>
-```
-
-In app.js, add this at the top:
-
-```javascript
-import { get_processed_file_path, fetchCSVFile } from './appDataFetcher.js';
-
-
- replace about 7 occurances of:
-
-`get_processed_file_path` with `getProcessedFilePath`.
-
 In VS Code, open app.html with LiveServer to test.
 
 ## Python Notes 

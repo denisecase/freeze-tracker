@@ -15,7 +15,7 @@ async function startApplication() {
   self.pyodide.globals.set("sendPatch", sendPatch);
   console.log("Loaded!");
   await self.pyodide.loadPackage("micropip");
-  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'configparser', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'io', 'json', 'logging', 'matplotlib', 'numpy', 'pandas', 'param', 'pathlib', 'plotly', 'requests']
+  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'configparser', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'io', 'json', 'logging', 'matplotlib', 'numpy', 'pandas', 'param', 'pathlib', 'plotly', 'requests', 'typing']
   for (const pkg of env_spec) {
     let pkg_name;
     if (pkg.endsWith('.whl')) {
@@ -66,7 +66,9 @@ import io
 import json
 import logging
 import pathlib
+import sys
 from datetime import datetime
+from typing import Union
 
 import holoviews as hv
 import hvplot.pandas # noqa
@@ -77,6 +79,7 @@ import param
 import plotly.express as px
 import requests
 from matplotlib.colors import LinearSegmentedColormap
+from holoviews import Options, dim, opts # noqa
 
 hv.extension("bokeh")
 pn.extension(sizing_mode="stretch_width")
@@ -88,7 +91,6 @@ logger.info("Starting Freeze Tracker Dashboard")
 
 # Define variables
 
-isWASMEnvironment = False #Set to True in Pyodide JS environment
 title_string = "Freeze Tracker Dashboard"
 footer_string = "2023"
 depth_file_name = "frost_depth.csv"
@@ -106,6 +108,12 @@ orr_temp_pane = pn.pane.Markdown("")
 
 # Define functions to create the components of the dashboard
 
+def is_WASM() -> bool:
+    """Determine if the environment is WASM or local."""
+    if sys.platform == 'browser':
+        return True
+    else:
+        return False
 
 # Component Ely
 
@@ -120,20 +128,43 @@ def get_data_frame(yearString):
     df["NAME"] = yearString
     return df
 
-
-def read_config():
+def read_config() -> Union[configparser.ConfigParser, None]:
     """Read the configuration file"""
-    print("Reading config file")
-    pkg_path = pathlib.Path.cwd()
-    src_path = pkg_path.parent
-    root_path = src_path.parent
-    config_path = root_path / "config.ini"  # Add the file name to the root path
-    config = configparser.ConfigParser()
-    config.read(config_path)
-    print(f"Config file found at {config_path}")
-    print(f"Config file has sections: {config.sections()}")
-    return config
-
+    github_repo = "freeze-tracker"
+    fname = "config.ini"
+    from_github = is_WASM()
+    print(f"Reading data from github: {from_github}")
+    if from_github:
+        try:
+            url = f"https://raw.githubusercontent.com/{github_repo}/main/{fname}"
+            response = requests.get(url)
+            response.raise_for_status()
+            content = response.text
+            config = configparser.ConfigParser()
+            config.read_string(content)
+            print(f"Config file found at {url}")
+            print(f"Config file has sections: {config.sections()}")
+            return config
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error reading from {url}: {e}")
+        except Exception as e:
+            print(f"Error reading from {url}: {e}")
+    else:
+        try:
+            pkg_path = pathlib.Path.cwd()
+            src_path = pkg_path.parent
+            root_path = src_path.parent
+            full_path = root_path.joinpath(fname)
+            config = configparser.ConfigParser()
+            config.read(full_path)
+            print(f"Config file found at {full_path}")
+            print(f"Config file has sections: {config.sections()}")
+            return config
+        except FileNotFoundError:
+            print(f"Error: Data file not found at {full_path}")
+        except Exception as e:
+            print(f"Error reading data file: {e}")
+ 
 
 def plot_cumulative_data(names, cumulative_types):
     # Check if the provided cumulative types are valid
@@ -341,7 +372,7 @@ def get_processed_file_path(fname):
 def read_data_csv_file_processed(fname):
     github_repo = "freeze-tracker"
     data_subfolder = "2_processed"
-    from_github = isWASMEnvironment
+    from_github = is_WASM()
     logger.info(f"Reading data from github: {from_github}")
     if from_github:
         try:
@@ -526,15 +557,22 @@ def create_freeze_thaw_charts(selected_winters):
             label="Thaw depth, in",
         )
 
-        combined_chart = (freeze_line * thaw_line).opts(
-            title="Frost and Thaw Depth Trends (Orr, MN)",
-            # title=f"{winter} (Last Data Point: {last_data_point_date})",
-            xlabel="Days After July 1",
-            ylabel="Depth (inches)",
-            width=400,
-            height=300,
-            legend_position="top_left",
-            xlim=(0, 365),
+        # using hv.extension("bokeh")
+        combined_chart = freeze_line * thaw_line
+        # from string 2010-04-06 get just the string month and day
+        short_last_date = last_data_point_date[5:10]
+        combined_chart.opts(
+            opts.Overlay(
+                title=f"Frost and Thaw Depth Trends ({winter}, Last Data Point: {short_last_date})",
+                width=400,
+                height=300,
+                legend_position="top_left",
+            ),
+            opts.Curve(
+                xlabel=f"{winter} last day: {short_last_date}",
+                ylabel="Depth (inches)",
+                xlim=(90, 365),
+            ),
         )
 
         # Add grey dashed spines
@@ -549,6 +587,7 @@ def create_freeze_thaw_charts(selected_winters):
 
         winter_charts.append(combined_chart)
     return winter_charts
+
 
 
 def create_winters_multiselect_widget():
@@ -642,6 +681,7 @@ def create_template_sidebar(winter_multiselect_widget):
         max_width=150,
     )
     return sidebar
+
 class FrostCharts(param.Parameterized):
     def __init__(self, **params):
         super().__init__(**params)
@@ -701,6 +741,8 @@ class FrostCharts(param.Parameterized):
         self.span_chart = self.span_chart()
         self.freeze_thaw_charts = self.freeze_thaw_charts()
 
+
+
 def create_template_main(winter_multiselect_widget):
     '''Returns a panel that reacts to changes in the winter_multiselect_widget'''
     frost_charts = FrostCharts(winters=winter_multiselect_widget.value)
@@ -709,25 +751,25 @@ def create_template_main(winter_multiselect_widget):
     def create_main_panel(selected_winters):
         frost_charts.winters = selected_winters
 
-        depth_panel = frost_charts.depth_chart
-        span_panel = frost_charts.span_chart
-        top_row = pn.Row(depth_panel, span_panel, sizing_mode="stretch_both")
+        depth_panel = frost_charts.depth_chart()
+        span_panel = frost_charts.span_chart()
+        top_row = pn.Row(depth_panel, span_panel)
+        ely_aggregate_row = create_ely_aggregate()
 
         freeze_thaw_charts = frost_charts.freeze_thaw_charts()  
         freeze_thaw_grid = pn.GridBox(
             *freeze_thaw_charts,
-            ncols=3,
-            sizing_mode="stretch_both",
-            max_height=800,
+            ncols=2
         )
-        ely_aggregate = create_ely_aggregate()
-        main_panel = pn.Column(top_row, freeze_thaw_grid, ely_aggregate)
 
-        return main_panel
+        column = pn.Column(
+            top_row,
+            freeze_thaw_grid,
+            ely_aggregate_row
+        )
 
+        return column
     return create_main_panel
-
-
 
 def create_dashboard():
     winter_multiselect_widget = create_winters_multiselect_widget()
