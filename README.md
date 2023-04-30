@@ -37,6 +37,8 @@ consistency in the project's workflow.
 
 ## Historical Data (Year starts July 1)
 
+[NOAA Global Hourly](https://www.ncei.noaa.gov/access/search/data-search/global-hourly)
+
 Weather Underground for Hibbing provides some data.
 
 - https://www.wunderground.com/history/monthly/us/mn/hibbing/KHIB/date/2023-4
