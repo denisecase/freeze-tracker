@@ -108,7 +108,7 @@ just install
 
 ```powershell
 cd src/freezetracker
-panel serve --show app.py
+panel serve --show --autoreload app.py
 ```
 
 ## Convert the Main App to Host on GitHub Pages
