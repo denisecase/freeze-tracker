@@ -97,13 +97,27 @@ footer_string = "2023"
 depth_file_name = "frost_depth.csv"
 span_file_name = "frost_span.csv"
 freeze_thaw_file_name = "frost_stlouis.csv"
-depth_file_name_out = "frost_depth_out.csv"
 span_file_name_out = "frost_span_out.csv"
 freeze_thaw_file_name_out = "frost_stlouis_out.csv"
 incidents_file_name = "incidents.csv"
 month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]
 month_names = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]
 city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
+default_winter_list = [
+            "2010-2011",
+            "2011-2012",
+            "2012-2013",
+            "2013-2014",
+            "2014-2015",
+            "2015-2016",
+            "2016-2017",
+            "2017-2018",
+            "2018-2019",
+            "2019-2020",
+            "2020-2021",
+            "2021-2022",
+            "2022-2023",
+        ]
 ely_temp_pane = pn.pane.Markdown("")
 orr_temp_pane = pn.pane.Markdown("")
 
@@ -111,8 +125,8 @@ orr_temp_pane = pn.pane.Markdown("")
 
 
 def is_WASM() -> bool:
-    """Determine if the environment is WASM or local."""
-    return True # WASM
+    """Return False in app.py, True in app.js (WASM)"""
+    return True 
 
 
 def get_data_frame(yearString):
@@ -399,6 +413,11 @@ def read_data_csv_file_processed(fname):
 def create_frost_depth_chart(selected_winters):
     """Create a chart of the max frost depth"""
     df = read_data_csv_file_processed(depth_file_name)
+    logger.info(f"Creating frost depth chart for winters df= {df}")
+    if df is None:
+        logger.info(f"Error: df for max frost depth is None")
+        return None
+    
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
     # Normalize the 'Max_Frost_Depth_in' column to a range of 0-1 for color mapping
@@ -593,12 +612,15 @@ def create_freeze_thaw_charts(selected_winters):
 
 
 def create_loading_charts(selected_winters):
+    """Create a cold loading chart 
+    and a hot loading chart 
+    for each winter using Plotly"""
     global config
     config = read_config()
     dfs = {}
     winter_charts = []
 
-    # Loop over years and write yearly data to separate files
+    # Loop over years and read in data files
     for startYear in range(2010, 2023):
         dfs[f"{startYear}-{startYear+1}"] = get_data_frame(f"{startYear}-{startYear+1}")
         print("FINISHED reading visualization input files")
@@ -615,6 +637,7 @@ def create_loading_charts(selected_winters):
             - pd.to_datetime(single_winter_df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
         ).dt.days
 
+        # Create a Plotly line chart of cumulative cold degree days
         figCold = px.line(
             single_winter_df,
             x="INDEX",
@@ -625,6 +648,7 @@ def create_loading_charts(selected_winters):
         )
         figCold.update_layout(height=400, width=600)
 
+        # Create a Plotly line chart of cumulative hot degree days
         figHot = px.line(
             single_winter_df,
             x="INDEX",
@@ -645,20 +669,7 @@ def create_loading_charts(selected_winters):
 
 
 def create_winters_multiselect_widget():
-    winter_list = [
-        "2010-2011",
-        "2011-2012",
-        "2012-2013",
-        "2013-2014",
-        "2014-2015",
-        "2015-2016",
-        "2016-2017",
-        "2017-2018",
-        "2018-2019",
-        "2019-2020",
-        "2020-2021",
-        "2022-2023",
-    ]
+    winter_list = default_winter_list
     widget = pn.widgets.MultiSelect(
         name="Winters", options=winter_list, value=winter_list, size=13, align="center", width=130
     )
@@ -762,36 +773,8 @@ class FrostCharts(param.Parameterized):
         self._selected_winters = value
 
     selected_winters = param.ListSelector(
-        default=[
-            "2010-2011",
-            "2011-2012",
-            "2012-2013",
-            "2013-2014",
-            "2014-2015",
-            "2015-2016",
-            "2016-2017",
-            "2017-2018",
-            "2018-2019",
-            "2019-2020",
-            "2020-2021",
-            "2021-2022",
-            "2022-2023",
-        ],
-        objects=[
-            "2010-2011",
-            "2011-2012",
-            "2012-2013",
-            "2013-2014",
-            "2014-2015",
-            "2015-2016",
-            "2016-2017",
-            "2017-2018",
-            "2018-2019",
-            "2019-2020",
-            "2020-2021",
-            "2021-2022",
-            "2022-2023",
-        ],
+        default=default_winter_list,
+        objects=default_winter_list,
         label="Selected Winters",
     )
 
@@ -829,25 +812,22 @@ def create_template_main(winter_multiselect_widget):
     def create_main_panel(selected_winters):
         frost_charts.selected_winters = selected_winters
 
-        # assign to reactive properties
+        # create local variables for the reactive chart objects
         depth_panel = frost_charts.depth_chart_object
         span_panel = frost_charts.span_chart_object
-        top_row = pn.Row(depth_panel, span_panel)
-
-        ely_aggregate_row = create_ely_aggregate()
-
         freeze_thaw_charts = frost_charts.freeze_thaw_charts_object
-        freeze_thaw_grid = pn.GridBox(*freeze_thaw_charts, ncols=2)
+        loading_charts_gridbox = frost_charts.loading_charts_object
 
-        loading_charts = frost_charts.loading_charts_object
+        top_row = pn.Row(depth_panel, span_panel)
+        ely_aggregate_row = create_ely_aggregate()
+        freeze_thaw_gridbox = pn.GridBox(*freeze_thaw_charts, ncols=2)
 
         column = pn.Column(
             top_row,
-            freeze_thaw_grid,
+            freeze_thaw_gridbox,
             ely_aggregate_row,
-            loading_charts,
+            loading_charts_gridbox,
         )
-
         return column
 
     # return a reactive function that returns a panel
@@ -861,6 +841,7 @@ def create_dashboard():
     winter_multiselect_widget = create_winters_multiselect_widget()
     create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
     initial_main_panel = create_main_panel(winter_multiselect_widget.value)
+
     dashboard = pn.template.FastListTemplate(
         title=title_string,
         favicon="favicon.ico",
@@ -868,7 +849,6 @@ def create_dashboard():
         main=initial_main_panel,
     )
     return dashboard
-
 
 
 def update_temperatures_callback():
