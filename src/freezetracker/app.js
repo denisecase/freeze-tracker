@@ -110,14 +110,8 @@ orr_temp_pane = pn.pane.Markdown("")
 # Define functions to create the components of the dashboard
 
 def is_WASM() -> bool:
-    """Determine if the environment is WASM or local.
-    False == False != True is 
-    True in Python and False in WASM
-    """
-    if False == False != True:
-        return False # Python
-    else:
-        return True # WASM
+    """Determine if the environment is WASM or local."""
+    return True # WASM
 
 def get_data_frame(yearString):
     """Read a file that starts with daily_temps_ into a data frame
