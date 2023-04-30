@@ -66,23 +66,23 @@ import io
 import json
 import logging
 import pathlib
-import sys
 from datetime import datetime
 from typing import Union
 
 import holoviews as hv
-import hvplot.pandas # noqa
+import hvplot.pandas  # noqa
 import numpy as np
 import pandas as pd
 import panel as pn
 import param
 import plotly.express as px
 import requests
-from bokeh.document import Document
+from bokeh.models import HoverTool, ResetTool, SaveTool
+from bokeh.plotting import figure
+from holoviews import Options, dim, opts  # noqa
 from matplotlib.colors import LinearSegmentedColormap
-from holoviews import Options, dim, opts # noqa
 
-hv.extension("bokeh")
+hv.extension("bokeh", "matplotlib")
 pn.extension(sizing_mode="stretch_width")
 
 logging.basicConfig(filename="example.log", level=logging.DEBUG)
@@ -109,15 +109,11 @@ orr_temp_pane = pn.pane.Markdown("")
 
 # Define functions to create the components of the dashboard
 
+
 def is_WASM() -> bool:
-    """Determine if the environment is WASM or local.
-    False == False != True is 
-    True in Python and False in WASM
-    """
-    if False == False != True:
-        return False # Python
-    else:
-        return True # WASM
+    """Determine if the environment is WASM or local."""
+    return True  # WASM
+
 
 def get_data_frame(yearString):
     """Read a file that starts with daily_temps_ into a data frame
@@ -128,6 +124,7 @@ def get_data_frame(yearString):
     df = read_data_csv_file_processed(fname)
     df["NAME"] = yearString
     return df
+
 
 def read_config() -> Union[configparser.ConfigParser, None]:
     """Read the configuration file"""
@@ -167,7 +164,7 @@ def read_config() -> Union[configparser.ConfigParser, None]:
             logger.error(f"Error: Data file not found at {full_path}")
         except Exception as e:
             logger.error(f"Error reading data file: {e}")
- 
+
 
 def plot_cumulative_data(names, cumulative_types):
     # Check if the provided cumulative types are valid
@@ -249,10 +246,6 @@ def create_ely_aggregate():
     component = pn.Row(col_cold, col_hot)
     return component
 
-
-# More............
-
-
 def get_current_temperature(city):
     lat = city_lat_long[city]["lat"]
     lon = city_lat_long[city]["lon"]
@@ -287,12 +280,11 @@ def get_current_orr_temp_pane():
         return pn.pane.Markdown(f"## Orr: {round(temp)}°F")
     else:
         return pn.pane.Markdown(" ")
-    
+
+
 def get_current_temps_row():
-    return pn.Row(
-        get_current_ely_temp_pane(), 
-        get_current_orr_temp_pane()
-        )
+    return pn.Row(get_current_ely_temp_pane(), get_current_orr_temp_pane())
+
 
 def create_custom_colormap():
     colors = ["green", "yellow", "red"]
@@ -362,6 +354,7 @@ def prepare_span_df(df):
     df["line_color"] = df["Normalized_Duration"]
     return df
 
+
 def get_processed_file_path(fname):
     pkg_path = pathlib.Path.cwd()
     src_path = pkg_path.parent
@@ -371,6 +364,7 @@ def get_processed_file_path(fname):
     processed_file_path = processed_data_path.joinpath(fname)
     logger.info(f"Reading from file {processed_file_path}")
     return processed_file_path
+
 
 def read_data_csv_file_processed(fname):
     github_repo = "freeze-tracker"
@@ -437,6 +431,7 @@ def create_frost_depth_chart(selected_winters):
         vdims=["text"],
     ).opts(text_color="black", text_alpha=0.8, align="center")
 
+    chart = figure(tools=[ResetTool(), HoverTool(), SaveTool()])
     chart = bars * labels
     result = pn.Row(chart)
     return result
@@ -449,6 +444,10 @@ def create_frost_span_chart(selected_winters):
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
     df.groupby("Winter")
+
+    # create a bokeh chart
+    chart = figure(tools=[ResetTool(), HoverTool(), SaveTool()])
+
     segments = []
     for idx, row in df.iterrows():
         start_text = hv.Text(
@@ -509,7 +508,6 @@ def create_frost_span_chart(selected_winters):
             line_color="red", line_dash="dashed", line_width=1
         )
         chart = incident_line * chart
- 
 
     chart = chart.opts(hv.opts.Segments(color="line_color", cmap=cmap, line_width=10))
     chart = chart.redim.label(x="Days After July 1", y="Duration (Days)").opts(
@@ -523,6 +521,7 @@ def create_frost_span_chart(selected_winters):
     )
     result = pn.Row(chart)
     return result
+
 
 def get_days_after_Jul_1(date_string):
     """Return the number of days after July 1 for the given date"""
@@ -593,6 +592,57 @@ def create_freeze_thaw_charts(selected_winters):
     return winter_charts
 
 
+def create_loading_charts(selected_winters):
+    global config
+    config = read_config()
+    dfs = {}
+    winter_charts = []
+
+    # Loop over years and write yearly data to separate files
+    for startYear in range(2010, 2023):
+        dfs[f"{startYear}-{startYear+1}"] = get_data_frame(f"{startYear}-{startYear+1}")
+        print("FINISHED reading visualization input files")
+
+    for name in selected_winters:
+        single_winter_df = dfs[name]
+
+        # Ensure the 'DATE' column has a consistent data type
+        single_winter_df["DATE"] = pd.to_datetime(single_winter_df["DATE"])
+
+        # Reset index to start from July 1
+        single_winter_df["Days"] = (
+            single_winter_df["DATE"]
+            - pd.to_datetime(single_winter_df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
+        ).dt.days
+
+        figCold = px.line(
+            single_winter_df,
+            x="INDEX",
+            y="CUMM_COLD_F",
+            color="NAME",
+            line_group="NAME",
+            title=f"Cumulative Freeze Degree Days (Ely, MN) - {name}",
+        )
+        figCold.update_layout(height=400, width=600)
+
+        figHot = px.line(
+            single_winter_df,
+            x="INDEX",
+            y="CUMM_HOT_F",
+            color="NAME",
+            line_group="NAME",
+            title=f"Cumulative Thaw Degree Days (Ely, MN) - {name}",
+        )
+        figHot.update_layout(height=400, width=600)
+
+        winter_charts.append(pn.pane.Plotly(figCold))
+        winter_charts.append(pn.pane.Plotly(figHot))
+    
+    # Wrap the winter_charts list in a GridBox layout with two columns
+    panel_grid_box = pn.GridBox(*winter_charts, ncols=2)
+
+    return panel_grid_box
+
 
 def create_winters_multiselect_widget():
     winter_list = [
@@ -652,29 +702,32 @@ def create_today_pane():
     pane = pn.pane.Markdown(f'<h2 style="color: blue;"> {formatted_date}</h2>')
     return pane
 
+
 def create_incident_pane(incident_date):
     formatted_date = incident_date.strftime("%b %d, %Y")
     pane = pn.pane.Markdown(f'<h3 style="color: red;"> {formatted_date}</h3>')
     return pane
 
-def create_incidents_pane():
+
+def create_incidents_column():
     incidents = [
         datetime(2022, 3, 31),
         datetime(2022, 4, 23),
         datetime(2023, 4, 15),
     ]
-    incidents_pane = pn.Column(
+    incidents_column = pn.Column(
         pn.pane.Markdown("## Incidents"),
         *[create_incident_pane(incident) for incident in incidents],
         width_policy="max",
-        max_width=150
+        max_width=150,
     )
-    return incidents_pane
+    return incidents_column
+
 
 def create_template_sidebar(winter_multiselect_widget):
     sidebar = pn.Column(
         create_today_pane(),
-        create_incidents_pane(),
+        create_incidents_column(),
         get_current_temps_row(),
         winter_multiselect_widget,
         create_open_location_pane(),
@@ -686,12 +739,29 @@ def create_template_sidebar(winter_multiselect_widget):
     )
     return sidebar
 
-class FrostCharts(param.Parameterized):
-    def __init__(self, **params):
-        super().__init__(**params)
-        self.param.watch(self._update_charts, "winters")
 
-    winters = param.ListSelector(
+class FrostCharts(param.Parameterized):
+    def __init__(self, selected_winters=[]):
+        super().__init__()
+        self._selected_winters = selected_winters
+        self.param.watch(self._update_charts, "selected_winters")
+        self._update_charts()  # Initialize the chart properties
+
+    # Properties to store chart objects
+    depth_chart_object = None
+    span_chart_object = None
+    freeze_thaw_charts_object = None
+    loading_charts_object = None
+
+    @property
+    def selected_winters(self):
+        return self._selected_winters
+
+    @selected_winters.setter
+    def selected_winters(self, value):
+        self._selected_winters = value
+
+    selected_winters = param.ListSelector(
         default=[
             "2010-2011",
             "2011-2012",
@@ -722,91 +792,102 @@ class FrostCharts(param.Parameterized):
             "2021-2022",
             "2022-2023",
         ],
-        label="Winters",
+        label="Selected Winters",
     )
 
-    @param.depends("winters")
+    @param.depends("selected_winters")
     def depth_chart(self):
-        chart = create_frost_depth_chart(self.winters)
+        chart = create_frost_depth_chart(self.selected_winters)
         return pn.Column(chart, sizing_mode="stretch_both")
 
-    @param.depends("winters")
+    @param.depends("selected_winters")
     def span_chart(self):
-        chart = create_frost_span_chart(self.winters)
+        chart = create_frost_span_chart(self.selected_winters)
         return pn.Column(chart, sizing_mode="stretch_both")
-    
-    @param.depends("winters")
+
+    @param.depends("selected_winters")
     def freeze_thaw_charts(self):
-        return create_freeze_thaw_charts(self.winters)
+        return create_freeze_thaw_charts(self.selected_winters)
 
-    @param.depends('winters', watch=True)
-    def _update_charts(self, event):
-        self.depth_chart = self.depth_chart()
-        self.span_chart = self.span_chart()
-        self.freeze_thaw_charts = self.freeze_thaw_charts()
+    @param.depends("selected_winters")
+    def loading_charts(self):
+        return create_loading_charts(self.selected_winters)
 
+    @param.depends("selected_winters", watch=True)
+    def _update_charts(self, event=None):
+        self.depth_chart_object = self.depth_chart()
+        self.span_chart_object = self.span_chart()
+        self.freeze_thaw_charts_object = self.freeze_thaw_charts()
+        self.loading_charts_object = self.loading_charts()
 
 
 def create_template_main(winter_multiselect_widget):
-    '''Returns a panel that reacts to changes in the winter_multiselect_widget'''
-    frost_charts = FrostCharts(winters=winter_multiselect_widget.value)
+    """Returns a panel that reacts to changes in the winter_multiselect_widget"""
+    frost_charts = FrostCharts(selected_winters=winter_multiselect_widget.value)
 
     @pn.depends(winter_multiselect_widget.param.value, watch=True)
     def create_main_panel(selected_winters):
-        frost_charts.winters = selected_winters
+        frost_charts.selected_winters = selected_winters
 
-        depth_panel = frost_charts.depth_chart()
-        span_panel = frost_charts.span_chart()
+        # assign to reactive properties
+        depth_panel = frost_charts.depth_chart_object
+        span_panel = frost_charts.span_chart_object
         top_row = pn.Row(depth_panel, span_panel)
+
         ely_aggregate_row = create_ely_aggregate()
 
-        freeze_thaw_charts = frost_charts.freeze_thaw_charts()  
-        freeze_thaw_grid = pn.GridBox(
-            *freeze_thaw_charts,
-            ncols=2
-        )
+        freeze_thaw_charts = frost_charts.freeze_thaw_charts_object
+        freeze_thaw_grid = pn.GridBox(*freeze_thaw_charts, ncols=2)
+
+        loading_charts = frost_charts.loading_charts_object
 
         column = pn.Column(
             top_row,
             freeze_thaw_grid,
-            ely_aggregate_row
+            ely_aggregate_row,
+            loading_charts,
         )
 
         return column
+
+    # return a reactive function that returns a panel
     return create_main_panel
 
+
 def create_dashboard():
+    """Create a Panel dashboard. 
+    The main panel is created with a function that 
+    reacts to changes in the winter_multiselect_widget"""
     winter_multiselect_widget = create_winters_multiselect_widget()
-    template_main = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
+    create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
+    initial_main_panel = create_main_panel(winter_multiselect_widget.value)
     dashboard = pn.template.FastListTemplate(
         title=title_string,
         favicon="favicon.ico",
         sidebar=create_template_sidebar(winter_multiselect_widget),
-        main=template_main,  # Remove the parentheses here
+        main=initial_main_panel,
     )
     return dashboard
 
 
 
-def update_temperatures():
+def update_temperatures_callback():
+    """Define a callback function to update objects on a scheduled interval"""
     ely_temp_pane.object = get_current_ely_temp_pane().object
     orr_temp_pane.object = get_current_orr_temp_pane().object
 
 
 def main():
-    # Create the dashboard
+    """Main function. Creates a Panel dashboard,
+    sets up periodic updates, and flags the dashboard as servable"""
     dashboard = create_dashboard()
-
-    # Update the temperatures every 5 minutes using a callback
-    callback_interval = 15 * 60 * 1000  # in milliseconds (15 minutes)
-    pn.state.add_periodic_callback(update_temperatures, callback_interval)
-
-    # Start serving the dashboard
+    callback_interval_ms = 15 * 60 * 1000  # every 15 min (in ms)
+    pn.state.add_periodic_callback(update_temperatures_callback, callback_interval_ms)
     dashboard.servable()
 
 
+'''Call main() regardless of how the script is started.'''
 main()
-
 
 
 await write_doc()

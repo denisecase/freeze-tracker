@@ -17,10 +17,6 @@ default:
 install:
     python -m pip install -e .[dev] 
 
-# Dump installed packages to requirements.txt
-freeze:
-    python -m pip freeze > requirements.txt
-
 # Delete all temporary files
 clean:
     if (Test-Path .ipynb_checkpoints) { Remove-Item .ipynb_checkpoints -Recurse -Force }

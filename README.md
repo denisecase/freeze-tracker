@@ -117,6 +117,8 @@ panel serve --show --autoreload app.py
 panel convert app.py --to pyodide-worker --out .
 ```
 
+Edit app.py is_WASM() to return True.
+
 In VS Code, open app.html with LiveServer to test.
 
 ## Python Notes 
