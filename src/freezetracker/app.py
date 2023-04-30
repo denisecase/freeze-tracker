@@ -55,20 +55,21 @@ month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]
 month_names = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]
 city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
 default_winter_list = [
-            "2010-2011",
-            "2011-2012",
-            "2012-2013",
-            "2013-2014",
-            "2014-2015",
-            "2015-2016",
-            "2016-2017",
-            "2017-2018",
-            "2018-2019",
-            "2019-2020",
-            "2020-2021",
-            "2021-2022",
-            "2022-2023",
-        ]
+    "2010-2011",
+    "2011-2012",
+    "2012-2013",
+    "2013-2014",
+    "2014-2015",
+    "2015-2016",
+    "2016-2017",
+    "2017-2018",
+    "2018-2019",
+    "2019-2020",
+    "2020-2021",
+    "2021-2022",
+    "2022-2023",
+]
+default_city_list = ["ELY", "ORR"]
 ely_temp_pane = pn.pane.Markdown("")
 orr_temp_pane = pn.pane.Markdown("")
 
@@ -77,17 +78,19 @@ orr_temp_pane = pn.pane.Markdown("")
 
 def is_WASM() -> bool:
     """Return False in app.py, True in app.js (WASM)"""
-    return False 
+    return False
 
 
-def get_data_frame(yearString):
+def get_data_frame(yearString, cityString):
     """Read a file that starts with daily_temps_ into a data frame
-    @ param yearString: string with the year range, e.g. "2019-2020
+    @ param yearString: string with the year range, e.g. '2019-2020'
+    @ param cityString: string with the city name, e.g. 'ELY'
     @ return: data frame with the data"""
     fn_start = "daily_temps"
-    fname = fn_start + "_" + yearString + ".csv"
+    fname = fn_start + "_" + yearString + "_" + cityString.lower() + ".csv"
     df = read_data_csv_file_processed(fname)
     df["NAME"] = yearString
+    df["CITY"] = cityString
     return df
 
 
@@ -167,10 +170,11 @@ def create_ely_aggregate():
     dfs = []
     global combined_df
 
-    # Loop over years and write yearly data to separate files
+    # Loop over years and cities
     for startYear in range(2010, 2023):
-        dfs.append(get_data_frame(f"{startYear}-{startYear+1}"))
-        print("FINISHED reading visualization input files")
+        for city in ["ELY"]:
+            dfs.append(get_data_frame(f"{startYear}-{startYear+1}", city))
+            logger.info(f"FINISHED reading visualization input files for {city}")
 
     # Concatenate all dataframes into one
     combined_df = pd.concat(dfs)
@@ -185,7 +189,7 @@ def create_ely_aggregate():
     ).dt.days
 
     # Call the new function with the desired names and cumulative_type
-    names_to_show = ["2019-2020", "2020-2021", "2021-2022", "2022-2023"]
+    names_to_show = default_winter_list
     cumulative_types = ["CUMM_COLD_F", "CUMM_HOT_F"]
     plot_cumulative_data(names_to_show, cumulative_types)
 
@@ -195,21 +199,29 @@ def create_ely_aggregate():
         y="CUMM_COLD_F",
         color="NAME",
         line_group="NAME",
-        title="Cumulative Freeze Degree Days (Ely, MN)",
+        title="Cumulative Freeze Degree Days (Ely, MN)"
     )
+    figCold.update_xaxes(title_text="Days after July 1", range=[0, 365])
+    figCold.update_yaxes(title_text="Degree-Days below freezing", range=[0, 6000])
     figCold.update_layout(height=400, width=600)
+
     figHot = px.line(
         combined_df,
         x="INDEX",
         y="CUMM_HOT_F",
-        color="NAME",
+        color="CITY",
+        line_group="NAME",
         title="Cumulative Thaw Degree Days (Ely, MN)",
     )
+    figHot.update_xaxes(title_text="Days after July 1", range=[0, 365])
+    figHot.update_yaxes(title_text="Degree-Days above thawing", range=[0, 6000])
+
     figHot.update_layout(height=400, width=600)
     col_cold = pn.Column(figCold)
     col_hot = pn.Column(figHot)
     component = pn.Row(col_cold, col_hot)
     return component
+
 
 def get_current_temperature(city):
     lat = city_lat_long[city]["lat"]
@@ -366,9 +378,9 @@ def create_frost_depth_chart(selected_winters):
     df = read_data_csv_file_processed(depth_file_name)
     logger.info(f"Creating frost depth chart for winters df= {df}")
     if df is None:
-        logger.info(f"Error: df for max frost depth is None")
+        logger.info("Error: df for max frost depth is None")
         return None
-    
+
     df = df[df["Winter"].isin(selected_winters)]
     cmap = create_custom_colormap()
     # Normalize the 'Max_Frost_Depth_in' column to a range of 0-1 for color mapping
@@ -530,8 +542,9 @@ def create_freeze_thaw_charts(selected_winters):
             label="Thaw depth, in",
         )
 
-        # using hv.extension("bokeh")
+        # create a holoviews chart
         combined_chart = freeze_line * thaw_line
+
         # from string 2010-04-06 get just the string month and day
         short_last_date = last_data_point_date[5:10]
         combined_chart.opts(
@@ -545,7 +558,9 @@ def create_freeze_thaw_charts(selected_winters):
                 xlabel=f"{winter} last day: {short_last_date}",
                 ylabel="Depth (inches)",
                 xlim=(90, 365),
+                ylim=(0, 100),
             ),
+            hv.opts.Curve(tools=[ResetTool(), HoverTool(), SaveTool()]),
         )
 
         # Add grey dashed spines
@@ -563,8 +578,8 @@ def create_freeze_thaw_charts(selected_winters):
 
 
 def create_loading_charts(selected_winters):
-    """Create a cold loading chart 
-    and a hot loading chart 
+    """Create a cold loading chart
+    and a hot loading chart
     for each winter using Plotly"""
     global config
     config = read_config()
@@ -573,8 +588,13 @@ def create_loading_charts(selected_winters):
 
     # Loop over years and read in data files
     for startYear in range(2010, 2023):
-        dfs[f"{startYear}-{startYear+1}"] = get_data_frame(f"{startYear}-{startYear+1}")
-        print("FINISHED reading visualization input files")
+        yearly_dfs = []
+        for city in default_city_list:
+            df_temp = get_data_frame(f"{startYear}-{startYear+1}", city)
+            df_temp["CITY"] = city
+            yearly_dfs.append(df_temp)
+            logger.info(f"FINISHED reading visualization input files for {city}")
+        dfs[f"{startYear}-{startYear+1}"] = pd.concat(yearly_dfs)
 
     for name in selected_winters:
         single_winter_df = dfs[name]
@@ -593,10 +613,13 @@ def create_loading_charts(selected_winters):
             single_winter_df,
             x="INDEX",
             y="CUMM_COLD_F",
-            color="NAME",
+            color="CITY",
             line_group="NAME",
-            title=f"Cumulative Freeze Degree Days (Ely, MN) - {name}",
+            title=f"Cumulative Freezing Degree Days - {name}",
+            labels={"CITY": "City"},
         )
+        figCold.update_xaxes(title_text="Days after July 1", range=[0, 365])
+        figCold.update_yaxes(title_text="Degree-Days below freezing", range=[0, 6000])
         figCold.update_layout(height=400, width=600)
 
         # Create a Plotly line chart of cumulative hot degree days
@@ -604,15 +627,18 @@ def create_loading_charts(selected_winters):
             single_winter_df,
             x="INDEX",
             y="CUMM_HOT_F",
-            color="NAME",
+            color="CITY",
             line_group="NAME",
-            title=f"Cumulative Thaw Degree Days (Ely, MN) - {name}",
+            title=f"Cumulative Thaw Degree Days - {name}",
+            labels={"CITY": "City"},
         )
+        figHot.update_xaxes(title_text="Days after July 1", range=[0, 365])
+        figHot.update_yaxes(title_text="Degree-Days above thawing", range=[0, 6000])
         figHot.update_layout(height=400, width=600)
 
         winter_charts.append(pn.pane.Plotly(figCold))
         winter_charts.append(pn.pane.Plotly(figHot))
-    
+
     # Wrap the winter_charts list in a GridBox layout with two columns
     panel_grid_box = pn.GridBox(*winter_charts, ncols=2)
 
@@ -785,9 +811,23 @@ def create_template_main(winter_multiselect_widget):
     return create_main_panel
 
 
+def create_github_pane():
+    """Add a GitHub pane with icon and link to repository"""
+    github_pane = pn.pane.HTML(
+        """
+        <a href="https://github.com/denisecase/freeze-tracker" target="_blank">
+            <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="30" height="30">
+        </a>
+        """,
+        width=30,
+        height=30,
+    )
+    return github_pane
+
+
 def create_dashboard():
-    """Create a Panel dashboard. 
-    The main panel is created with a function that 
+    """Create a Panel dashboard.
+    The main panel is created with a function that
     reacts to changes in the winter_multiselect_widget"""
     winter_multiselect_widget = create_winters_multiselect_widget()
     create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
@@ -795,9 +835,10 @@ def create_dashboard():
 
     dashboard = pn.template.FastListTemplate(
         title=title_string,
-        favicon="favicon.ico",
+        favicon="favicon.ico",  # place in this folder
         sidebar=create_template_sidebar(winter_multiselect_widget),
         main=initial_main_panel,
+        header=create_github_pane(),  # Add the GitHub icon to the header
     )
     return dashboard
 
@@ -817,5 +858,5 @@ def main():
     dashboard.servable()
 
 
-'''Call main() regardless of how the script is started.'''
+"""Call main() regardless of how the script is started."""
 main()
