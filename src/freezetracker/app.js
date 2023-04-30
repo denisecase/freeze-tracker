@@ -112,7 +112,7 @@ orr_temp_pane = pn.pane.Markdown("")
 
 def is_WASM() -> bool:
     """Determine if the environment is WASM or local."""
-    return True  # WASM
+    return True # WASM
 
 
 def get_data_frame(yearString):
