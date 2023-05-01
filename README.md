@@ -82,7 +82,7 @@ it's important to run this command in PowerShell Core.
 When using Just in VS Code, 
 remember to choose the PowerShell Core Terminal.
 
-## Create a Virtual Environment
+## Create a Virtual Environment (Just Once)
 
 ```shell
 python -m venv .venv
@@ -92,11 +92,13 @@ When VS Code Python Extension offers to select the Environment, say Yes.
 
 ## Activate the Virtual Environment
 
-Activate it on Windows: `.venv\Scripts\activate`
+When starting a new session, you'll need to activate the virtual environment.
 
-Activate it on macOS/Linux `source .venv/bin/`
+Activate it in PowerShell: `.venv\Scripts\activate`
 
-To deactivate, run `deactivate`.
+Activate it in macOS/Linux Terminal:  `source .venv/bin/`
+
+If you ever want to deactivate it, run `deactivate`.
 
 ## Install Dependencies
 

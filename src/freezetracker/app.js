@@ -59,6 +59,25 @@ In the directory where this file exists, run the following command:
     import hvplot.pandas is required for the charts to work 
     - add noqa comment so linting and sorting don't remove it
 
+    
+In Holoviews, both + and * operators are used to combine elements.
+
+* (Overlay): The * operator is used to overlay elements 
+on top of each other in the same plot. 
+When you use the * operator with Holoviews elements, 
+the result is a single plot with all elements displayed together. 
+Used to show multiple plot elements simultaneously within the same coordinate system, 
+as in our freeze_points and thaw_points.
+
++ (Layout): The + operator is used to create a layout 
+where the elements are placed side by side or in a grid, 
+depending on how many elements you combine. 
+When you use the + operator with Holoviews elements, 
+the result is a layout where each element is displayed in its own plot, 
+arranged in the specified order. 
+This is useful when you want to create a multi-panel plot, 
+where each element has its own separate plot space.
+
 
 """
 import configparser
@@ -575,41 +594,48 @@ def create_freeze_thaw_charts(selected_winters):
         winter_df = winter_df.sort_values(by=["days_after_Jul_1"])
         last_data_point_date = winter_df["Date"].max()
         logger.info(f"last_data_point_date: {last_data_point_date}")
+        max_depth_in = winter_df["FROST_DEPTH_in"].max()
+        logger.info(f"max_depth_in: {max_depth_in}")
 
-        freeze_line = winter_df.hvplot.line(
+
+        freeze_line = winter_df.hvplot.scatter(
             x="days_after_Jul_1",
             y="FROST_DEPTH_in",
+            marker="triangle", 
+            size=10,
             color="blue",
-            line_width=2,
             label="Frost depth, in",
-        )
-        thaw_line = winter_df.hvplot.line(
+        ) # .opts(responsive=True)
+
+        thaw_line = winter_df.hvplot.scatter(
             x="days_after_Jul_1",
             y="THAW_DEPTH_in",
+            marker = "circle",
+            size=10,
             color="red",
             line_width=2,
             label="Thaw depth, in",
-        )
+        ) # .opts(responsive=True)
 
-        # create a holoviews chart
+        # create a holoviews chart using overlay operator, *
         combined_chart = freeze_line * thaw_line
 
         # from string 2010-04-06 get just the string month and day
         short_last_date = last_data_point_date[5:10]
         combined_chart.opts(
             opts.Overlay(
-                title=f"Frost and Thaw Depth Trends ({winter}, Last Data Point: {short_last_date})",
-                width=400,
-                height=300,
+                title=f"Frost, Thaw Depth Trends ({winter}, Last Data Point: {short_last_date})",
+                width=1200,
+                #height=800,
+                responsive = True,
                 legend_position="top_left",
             ),
             opts.Curve(
-                xlabel=f"{winter} last day: {short_last_date}",
+                xlabel=f"{winter} last day: {short_last_date}, max in: {str(max_depth_in)}",
                 ylabel="Depth (inches)",
                 xlim=(90, 365),
                 ylim=(0, 100),
             ),
-            hv.opts.Curve(tools=[ResetTool(), HoverTool(), SaveTool()]),
         )
 
         # Add grey dashed spines
@@ -846,7 +872,9 @@ def create_template_main(winter_multiselect_widget):
 
         top_row = pn.Row(depth_panel, span_panel)
         ely_aggregate_row = create_ely_aggregate()
-        freeze_thaw_gridbox = pn.GridBox(*freeze_thaw_charts, ncols=2)
+        # freeze_thaw_gridbox = pn.GridBox(*freeze_thaw_charts, ncols=2)
+        # freeze_thaw_gridbox = pn.Column(*freeze_thaw_charts)
+        freeze_thaw_gridbox = pn.Column(*freeze_thaw_charts, sizing_mode="stretch_width")
 
         column = pn.Column(
             top_row,
