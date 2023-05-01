@@ -555,7 +555,7 @@ def create_freeze_thaw_charts(selected_winters):
             marker="triangle", 
             size=10,
             color="blue",
-            label="Frost depth, in",
+            #label="Frost depth, in",
         ) # .opts(responsive=True)
 
         thaw_line = winter_df.hvplot.scatter(
@@ -565,7 +565,7 @@ def create_freeze_thaw_charts(selected_winters):
             size=10,
             color="red",
             line_width=2,
-            label="Thaw depth, in",
+            #label="Thaw depth, in",
         ) # .opts(responsive=True)
 
         # create a holoviews chart using overlay operator, *
@@ -578,14 +578,14 @@ def create_freeze_thaw_charts(selected_winters):
                 title=f"Frost, Thaw Depth Trends ({winter}, Last Data Point: {short_last_date})",
                 width=1200,
                 #height=800,
-                responsive = True,
-                legend_position="top_left",
+                #responsive = True,
             ),
-            opts.Curve(
+            opts.Scatter(
                 xlabel=f"{winter} last day: {short_last_date}, max in: {str(max_depth_in)}",
                 ylabel="Depth (inches)",
                 xlim=(90, 365),
-                ylim=(0, 100),
+                ylim=(-10, 100),
+                legend_position="top_left",
             ),
         )
 
