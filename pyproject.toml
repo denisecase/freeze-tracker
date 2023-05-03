@@ -77,6 +77,8 @@ venvPath = "./venv"
 pythonVersion = "3.11"
 reportMissingTypeStubs = false
 reportUntypedFunction = true
+reportUnboundVariable = false
+
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

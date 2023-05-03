@@ -70,6 +70,8 @@ python --version
 python -m pip install --upgrade pip
 python -m pip install panel panel[pyodide] hvplot jupyterlab
 python -m pip install black ruff
+python -m pip install pyright
+
 ```
 
 Install the Just command runner. For example, on Windows using Chocolatey:
@@ -94,7 +96,7 @@ When VS Code Python Extension offers to select the Environment, say Yes.
 
 When starting a new session, you'll need to activate the virtual environment.
 
-Activate it in PowerShell: `.venv\Scripts\activate`
+Activate it in PowerShell: `.venv\Scripts\Activate`
 
 Activate it in macOS/Linux Terminal:  `source .venv/bin/`
 
@@ -176,20 +178,4 @@ distributing Python packages.
 
 `just install` uses the Just command runner to run the install recipe defined
 in the Justfile. 
-
-## Plotly Dash
-
-- [Dash](https://dash.plotly.com/)
-
-
-## TODO
-
-- Add tests
-- Fix month start
-- consider overlaying
-- add historical event dates
-
-## Preview
-
-![Initial Insights](images/initial.PNG)
 
