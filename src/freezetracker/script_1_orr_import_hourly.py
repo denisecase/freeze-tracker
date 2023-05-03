@@ -9,14 +9,13 @@ Save as
 data/1_raw/FromNOAA_3320024_Orr_Import.xlsx
 
 """
-import logging
 import pathlib
 
 import pandas as pd
 
 from freezetracker.common_logger import get_basename, get_logger
 
-logger = get_logger( get_basename(__file__))
+logger = get_logger(get_basename(__file__))
 
 
 def read_raw_hourly_data() -> pd.DataFrame:

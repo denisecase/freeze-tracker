@@ -14,11 +14,10 @@ from freezetracker.common_content import (
     month_names,
     month_starts,
 )
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("chart_freeze_thaw")
 
 freeze_thaw_file_name = "frost_stlouis.csv"
 freeze_thaw_file_name_out = "frost_stlouis_out.csv"

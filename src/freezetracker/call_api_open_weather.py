@@ -7,11 +7,10 @@ import json
 
 import requests
 
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load_config import read_config
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("call_api_open_weather")
 
 
 city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}

@@ -8,14 +8,14 @@ Save as
 
 data/1_raw/FromNOAA_3320024_Ely_Import.xlsx
 """
-import logging
 import pathlib
 
 import pandas as pd
 
 from freezetracker.common_logger import get_basename, get_logger
 
-logger = get_logger( get_basename(__file__))
+logger = get_logger(get_basename(__file__))
+
 
 def read_raw_hourly_data() -> pd.DataFrame:
     """Read the raw data file into a pandas DataFrame
@@ -70,7 +70,6 @@ def generate_initial_hourly_data(df: pd.DataFrame) -> pd.DataFrame:
     return df_daily[["IYEAR", "IMONTH", "IDAY", "AVG_DAILY_TEMP_F"]]
 
 
-
 def save_processed_data(df: pd.DataFrame):
     """Save the processed data to a CSV file"""
     try:
@@ -91,7 +90,6 @@ def save_processed_data(df: pd.DataFrame):
         logger.info(f"Saved processed data to {f}")
     except Exception as e:
         logger.error(f"Error saving processed data: {e}")
-
 
 
 def main():

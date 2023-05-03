@@ -20,11 +20,10 @@ from freezetracker.common_content import (
     month_names,
     month_starts,
 )
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("chart_frost_span")
 
 
 span_file_name = "frost_span.csv"
@@ -117,7 +116,7 @@ def create_chart_frost_span(is_wasm, selected_winters):
     # Add a red vertical line for each incident based on days after July 1
     df = read_data_processed_csv_to_df(is_wasm, incidents_file_name)
     logger.debug(f"incidents df.columns: {df.columns}")
-    
+
     for idx, row in df.iterrows():
         incident_days_after_Jul_1 = get_days_after_Jul_1_from_date_string(row["Date"])
         incident_line = hv.VLine(incident_days_after_Jul_1).opts(

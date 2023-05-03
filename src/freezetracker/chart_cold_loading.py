@@ -8,11 +8,10 @@ import plotly.express as px
 from common_content import default_city_list
 from holoviews import Options, dim, opts  # noqa
 
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("chart_cold_loading")
 
 
 def read_df_from_winter_and_city(is_wasm, yearString, cityString):

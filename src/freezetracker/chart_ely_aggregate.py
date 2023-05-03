@@ -9,11 +9,10 @@ import plotly.express as px
 from holoviews import Options, dim, opts  # noqa
 
 from freezetracker.common_content import default_winter_list
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("chart_ely_aggregate")
 
 
 def plot_cumulative_data(names, cumulative_types):

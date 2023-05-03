@@ -12,15 +12,13 @@ The files should be saved in
 etc.
 """
 
-import logging
 import pathlib
 
 import pandas as pd
 
 from freezetracker.common_logger import get_basename, get_logger
 
-logger = get_logger( get_basename(__file__))
-
+logger = get_logger(get_basename(__file__))
 
 
 def read_all_daily_data() -> pd.DataFrame:
@@ -83,6 +81,7 @@ def write_yearly_data(startYear):
     df_year = df[(df["DATE"] >= start_date) & (df["DATE"] <= end_date)]
     logger.info(f"Writing data for year {year_str}")
     save_year_of_data(startYear, year_str, df_year)
+
 
 def save_year_of_data(startYear, yearString, df: pd.DataFrame):
     """Save a yearString (2020-2021) of data to a CSV file in the processed data folder"""

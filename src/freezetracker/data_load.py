@@ -11,19 +11,10 @@ import io
 import pandas as pd
 import requests
 
-from freezetracker.common_content import get_basename, get_data_processed_path_from_code_folder
+from freezetracker.common_content import get_data_processed_path_from_code_folder
 from freezetracker.common_logger import get_logger
 
-# Third party imports
-
-
-# local imports
-
-
-# Add logger
-
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("data_load")
 
 
 def read_data_processed_csv_to_df(is_WASM, fname):

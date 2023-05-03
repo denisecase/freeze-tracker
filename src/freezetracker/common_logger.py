@@ -27,11 +27,13 @@ Purpose:
     
 """
 
-import os
 import logging
+import os
+
 
 def get_basename(file):
     return os.path.splitext(os.path.basename(file))[0]
+
 
 def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):
     """Configure a common logger for the application"""

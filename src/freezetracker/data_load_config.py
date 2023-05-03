@@ -19,13 +19,10 @@ import pathlib
 from typing import Union
 
 import requests
-from common_content import get_basename
 
 from freezetracker.common_logger import get_logger
 
-
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("data_load_config")
 
 
 def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:

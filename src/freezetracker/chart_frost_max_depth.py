@@ -9,11 +9,10 @@ import panel as pn
 from holoviews import Options, dim, opts  # noqa
 from matplotlib.colors import LinearSegmentedColormap
 
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("chart_frost_max_depth")
 
 depth_file_name = "frost_depth.csv"
 

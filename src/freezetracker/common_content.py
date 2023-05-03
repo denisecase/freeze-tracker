@@ -8,10 +8,9 @@ from datetime import datetime
 
 import pandas as pd
 
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("common_content")
 
 incidents_file_name = "incidents.csv"
 month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]

@@ -82,8 +82,8 @@ where each element has its own separate plot space.
 """
 
 # Standard Python library imports
-import os  
-import sys  
+import os
+import sys
 from datetime import datetime
 
 # Third-party imports
@@ -93,9 +93,13 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
-# Add src file to Python path so we can import local modules
-src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-sys.path.insert(0, src_dir)
+if "__file__" in globals():
+    """In Python, add the src folder to the path so that local imports work"""
+    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    sys.path.insert(0, src_dir)
+else:
+    """In GitHub Pages, the src folder is not needed"""
+    src_dir = None
 
 # Local imports
 from freezetracker.call_api_open_weather import get_current_temperature
@@ -105,15 +109,14 @@ from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
 from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
 from freezetracker.chart_frost_span import create_chart_frost_span
 from freezetracker.common_content import default_winter_list
-from freezetracker.common_logger import get_basename, get_logger
+from freezetracker.common_logger import get_logger
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
 pn.extension(sizing_mode="stretch_width")
 
 # Add logger
-module_name = get_basename(__file__)
-logger = get_logger(module_name)
+logger = get_logger("app")
 
 # Define variables
 title_string = "Freeze Tracker Dashboard"
@@ -124,7 +127,7 @@ orr_temp_pane = pn.pane.Markdown("")
 
 def is_WASM() -> bool:
     """Return False in app.py, True in app.js (WASM)"""
-    return True
+    return False
 
 
 def empty_chart_placeholder():
@@ -133,7 +136,7 @@ def empty_chart_placeholder():
 
 def get_current_ely_temp_pane():
     is_wasm = is_WASM()
-    temp = get_current_temperature(is_wasm,"ELY")
+    temp = get_current_temperature(is_wasm, "ELY")
     if temp is not None:
         return pn.pane.Markdown(f"## Ely: {round(temp)}°F")
     else:
