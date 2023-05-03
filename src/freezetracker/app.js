@@ -95,7 +95,7 @@ from holoviews import Options, dim, opts  # noqa
 
 def is_WASM() -> bool:
     """Return False in app.py, True in app.js (WASM)"""
-    return False
+    return True
 
 if not is_WASM():
     src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
