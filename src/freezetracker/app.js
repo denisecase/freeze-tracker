@@ -101,15 +101,7 @@ else:
     """In GitHub Pages, the src folder is not needed"""
     src_dir = None
 
-# Local imports
-from freezetracker.call_api_open_weather import get_current_temperature
-from freezetracker.chart_cold_loading import create_chart_cold_loading
-from freezetracker.chart_ely_aggregate import create_chart_ely_aggregate
-from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
-from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
-from freezetracker.chart_frost_span import create_chart_frost_span
-from freezetracker.common_content import default_winter_list
-from freezetracker.common_logger import get_logger
+from freezetracker.import_local import *
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
@@ -127,7 +119,7 @@ orr_temp_pane = pn.pane.Markdown("")
 
 def is_WASM() -> bool:
     """Return False in app.py, True in app.js (WASM)"""
-    return False
+    return True
 
 
 def empty_chart_placeholder():

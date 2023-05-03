@@ -1,15 +1,25 @@
 """
 Chart - cold loading
 """
+import holoviews as hv
 import hvplot.pandas  # noqa
 import pandas as pd
 import panel as pn
 import plotly.express as px
 from common_content import default_city_list
 from holoviews import Options, dim, opts  # noqa
+from holoviews.plotting.plotly import PlotlyRenderer
 
+from freezetracker.common_content import (
+    calculate_winter_start_year,
+    get_data_processed_path_from_code_folder,
+    month_names,
+    month_starts,
+)
 from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
+
+hv.extension("bokeh")
 
 logger = get_logger("chart_cold_loading")
 
@@ -46,6 +56,19 @@ def create_chart_cold_loading(is_wasm, selected_winters):
         dfs[f"{startYear}-{startYear+1}"] = pd.concat(yearly_dfs)
 
     for name in selected_winters:
+
+        '''Incidents: 
+            Winter,Date
+            2021-2022,2022/03/31
+            2021-2022,2022/04/23
+            2022-2023,2023/04/15
+        '''
+        note = ""
+        if name == "2021-2022":
+            note = "INCIDENT: 03/31, 04/23"
+        elif name == "2022-2023":
+            note = "INCIDENT: 04/15"
+
         single_winter_df = dfs[name]
 
         # Ensure the 'DATE' column has a consistent data type
@@ -57,6 +80,7 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             - pd.to_datetime(single_winter_df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
         ).dt.days
 
+
         # Create a Plotly line chart of cumulative cold degree days
         figCold = px.line(
             single_winter_df,
@@ -67,9 +91,25 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             title=f"Cumulative Freezing Degree Days - {name}",
             labels={"CITY": "City"},
         )
-        figCold.update_xaxes(title_text="Days after July 1", range=[0, 365])
+        figCold.update_xaxes(title_text=f"Days after July 1 ({note})", range=[0, 365])
         figCold.update_yaxes(title_text="Degree-Days below freezing", range=[0, 6000])
         figCold.update_layout(height=400, width=600)
+
+        # # Convert the Plotly chart to a Holoviews chart
+        # hv_fig_cold = PlotlyRenderer.to_holoviews(figCold)
+
+        # # Add grey dashed spines
+        # for i, month_start in enumerate(month_starts):
+        #     month_line = hv.VLine(month_start).opts(
+        #         line_color="gray", line_dash="dashed", line_width=1
+        #     )
+        #     month_text = hv.Text(
+        #         month_start + 15, single_winter_df["CUMM_COLD_F"].min(), month_names[i]
+        #     ).opts(text_font_size="8pt", align="center")
+        #     hv_fig_cold *= month_line * month_text
+
+        # # Display the Holoviews chart
+        # hv_fig_cold.opts(width=600, height=400)
 
         # Create a Plotly line chart of cumulative hot degree days
         figHot = px.line(

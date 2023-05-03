@@ -62,6 +62,7 @@ def create_chart_freeze_thaw(is_wasm, selected_winters):
     df = df[df["Winter"].isin(selected_winters)]
     grouped_df = df.groupby("Winter")
     winter_charts = []
+    
     for winter, winter_df in grouped_df:
         winter_df = winter_df.sort_values(by=["days_after_Jul_1"])
         last_data_point_date = winter_df["Date"].max()
