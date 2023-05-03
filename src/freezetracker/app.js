@@ -93,15 +93,14 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
-def is_WASM() -> bool:
-    """Return False in app.py, True in app.js (WASM)"""
-    return True
-
-if not is_WASM():
-    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-    sys.path.insert(0, src_dir)
-
-from freezetracker.import_local import *
+from freezetracker.call_api_open_weather import get_current_temperature
+from freezetracker.chart_cold_loading import create_chart_cold_loading
+from freezetracker.chart_ely_aggregate import create_chart_ely_aggregate
+from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
+from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
+from freezetracker.chart_frost_span import create_chart_frost_span
+from freezetracker.common_content import default_winter_list
+from freezetracker.common_logger import get_logger
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
@@ -110,13 +109,15 @@ pn.extension(sizing_mode="stretch_width")
 # Add logger
 logger = get_logger("app")
 
+def is_WASM() -> bool:
+    """Return False in app.py, True in app.js (WASM)"""
+    return True
+
 # Define variables
 title_string = "Freeze Tracker Dashboard"
 footer_string = "2023"
 ely_temp_pane = pn.pane.Markdown("")
 orr_temp_pane = pn.pane.Markdown("")
-
-
 
 
 def empty_chart_placeholder():
@@ -337,14 +338,14 @@ def create_dashboard():
     The main panel is created with a function that
     reacts to changes in the winter_multiselect_widget"""
     winter_multiselect_widget = create_winters_multiselect_widget()
-    # create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
-    # initial_main_panel = create_main_panel(winter_multiselect_widget.value)
+    create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
+    initial_main_panel = create_main_panel(winter_multiselect_widget.value)
 
     dashboard = pn.template.FastListTemplate(
         title=title_string,
         favicon="favicon.ico",  # place in this folder
         sidebar=create_template_sidebar(winter_multiselect_widget),
-        # main=initial_main_panel,
+        main=initial_main_panel,
         header=create_github_pane(),  # Add the GitHub icon to the header
     )
     return dashboard
