@@ -15,7 +15,7 @@ async function startApplication() {
   self.pyodide.globals.set("sendPatch", sendPatch);
   console.log("Loaded!");
   await self.pyodide.loadPackage("micropip");
-  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'datetime', 'freezetracker', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'os', 'param']
+  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'import_local', 'os', 'param']
   for (const pkg of env_spec) {
     let pkg_name;
     if (pkg.endsWith('.whl')) {
@@ -93,15 +93,11 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
-if "__file__" in globals():
-    """In Python, add the src folder to the path so that local imports work"""
-    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-    sys.path.insert(0, src_dir)
-else:
-    """In GitHub Pages, the src folder is not needed"""
-    src_dir = None
 
-from freezetracker.import_local import *
+src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+sys.path.insert(0, src_dir)
+
+from import_local import *
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
@@ -340,14 +336,14 @@ def create_dashboard():
     The main panel is created with a function that
     reacts to changes in the winter_multiselect_widget"""
     winter_multiselect_widget = create_winters_multiselect_widget()
-    create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
-    initial_main_panel = create_main_panel(winter_multiselect_widget.value)
+    # create_main_panel = create_template_main(winter_multiselect_widget=winter_multiselect_widget)
+    # initial_main_panel = create_main_panel(winter_multiselect_widget.value)
 
     dashboard = pn.template.FastListTemplate(
         title=title_string,
         favicon="favicon.ico",  # place in this folder
         sidebar=create_template_sidebar(winter_multiselect_widget),
-        main=initial_main_panel,
+        # main=initial_main_panel,
         header=create_github_pane(),  # Add the GitHub icon to the header
     )
     return dashboard
