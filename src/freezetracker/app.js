@@ -15,7 +15,7 @@ async function startApplication() {
   self.pyodide.globals.set("sendPatch", sendPatch);
   console.log("Loaded!");
   await self.pyodide.loadPackage("micropip");
-  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'import_local', 'os', 'param']
+  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'datetime', 'freezetracker', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'os', 'param']
   for (const pkg of env_spec) {
     let pkg_name;
     if (pkg.endsWith('.whl')) {
@@ -93,11 +93,15 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
+def is_WASM() -> bool:
+    """Return False in app.py, True in app.js (WASM)"""
+    return False
 
-src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-sys.path.insert(0, src_dir)
+if not is_WASM():
+    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    sys.path.insert(0, src_dir)
 
-from import_local import *
+from freezetracker.import_local import *
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
@@ -113,9 +117,6 @@ ely_temp_pane = pn.pane.Markdown("")
 orr_temp_pane = pn.pane.Markdown("")
 
 
-def is_WASM() -> bool:
-    """Return False in app.py, True in app.js (WASM)"""
-    return True
 
 
 def empty_chart_placeholder():

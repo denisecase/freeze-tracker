@@ -44,11 +44,15 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
+def is_WASM() -> bool:
+    """Return False in app.py, True in app.js (WASM)"""
+    return False
 
-src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-sys.path.insert(0, src_dir)
+if not is_WASM():
+    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    sys.path.insert(0, src_dir)
 
-from import_local import *
+from freezetracker.import_local import *
 
 # Configure Panel
 hv.extension("bokeh", "matplotlib")
@@ -64,9 +68,6 @@ ely_temp_pane = pn.pane.Markdown("")
 orr_temp_pane = pn.pane.Markdown("")
 
 
-def is_WASM() -> bool:
-    """Return False in app.py, True in app.js (WASM)"""
-    return False
 
 
 def empty_chart_placeholder():
