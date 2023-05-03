@@ -93,10 +93,10 @@ import panel as pn
 import param
 from holoviews import Options, dim, opts  # noqa
 
-from freezetracker.call_api_open_weather import get_current_temperature
-from freezetracker.chart_cold_loading import create_chart_cold_loading
-from freezetracker.chart_ely_aggregate import create_chart_ely_aggregate
-from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
+# from freezetracker.call_api_open_weather import get_current_temperature
+# from freezetracker.chart_cold_loading import create_chart_cold_loading
+# from freezetracker.chart_ely_aggregate import create_chart_ely_aggregate
+# from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
 from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
 from freezetracker.chart_frost_span import create_chart_frost_span
 from freezetracker.common_content import default_winter_list
@@ -126,7 +126,8 @@ def empty_chart_placeholder():
 
 def get_current_ely_temp_pane():
     is_wasm = is_WASM()
-    temp = get_current_temperature(is_wasm, "ELY")
+    # temp = get_current_temperature(is_wasm, "ELY")
+    temp = 60.1
     if temp is not None:
         return pn.pane.Markdown(f"## Ely: {round(temp)}°F")
     else:
@@ -135,7 +136,9 @@ def get_current_ely_temp_pane():
 
 def get_current_orr_temp_pane():
     is_wasm = is_WASM()
-    temp = get_current_temperature(is_wasm, "ORR")
+    # temp = get_current_temperature(is_wasm, "ORR")
+    temp = 60.2
+
     if temp is not None:
         return pn.pane.Markdown(f"## Orr: {round(temp)}°F")
     else:
@@ -270,18 +273,26 @@ class FrostCharts(param.Parameterized):
 
     @param.depends("selected_winters")
     def freeze_thaw_charts(self):
-        return create_chart_freeze_thaw(self.is_wasm, self.selected_winters)
+        charts = []
+        # charts = create_chart_freeze_thaw(self.is_wasm, self.selected_winters)
+        return charts
 
     @param.depends("selected_winters")
     def loading_charts(self):
-        return create_chart_cold_loading(self.is_wasm, self.selected_winters)
+        charts = []
+        # charts = create_chart_cold_loading(self.is_wasm, self.selected_winters)
+        return charts
 
     @param.depends("selected_winters", watch=True)
     def _update_charts(self, event=None):
-        self.depth_chart_object = self.depth_chart()
-        self.span_chart_object = self.span_chart()
-        self.freeze_thaw_charts_object = self.freeze_thaw_charts()
-        self.loading_charts_object = self.loading_charts()
+        # self.depth_chart_object = self.depth_chart()
+        # self.span_chart_object = self.span_chart()
+        # self.freeze_thaw_charts_object = self.freeze_thaw_charts()
+        # self.loading_charts_object = self.loading_charts()
+        self.depth_chart_object = empty_chart_placeholder()
+        self.span_chart_object = empty_chart_placeholder()
+        self.freeze_thaw_charts_object = empty_chart_placeholder()
+        self.loading_charts_object = empty_chart_placeholder()
 
 
 def create_template_main(winter_multiselect_widget):
@@ -300,7 +311,8 @@ def create_template_main(winter_multiselect_widget):
 
         top_row = pn.Row(depth_panel, span_panel)
         is_wasm = is_WASM()
-        ely_aggregate_row = create_chart_ely_aggregate(is_wasm)
+        ely_aggregate_row = pn.Row()
+        # ely_aggregate_row = create_chart_ely_aggregate(is_wasm)
 
         if freeze_thaw_charts is not None:
             freeze_thaw_gridbox = pn.Column(*freeze_thaw_charts, sizing_mode="stretch_width")

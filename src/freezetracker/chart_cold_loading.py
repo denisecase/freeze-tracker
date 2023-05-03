@@ -19,7 +19,8 @@ from freezetracker.common_content import (
 from freezetracker.common_logger import get_logger
 from freezetracker.data_load import read_data_processed_csv_to_df
 
-hv.extension("bokeh")
+hv.extension("bokeh", "matplotlib")
+pn.extension(sizing_mode="stretch_width")
 
 logger = get_logger("chart_cold_loading")
 
