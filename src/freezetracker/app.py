@@ -48,8 +48,8 @@ from holoviews import Options, dim, opts  # noqa
 # from freezetracker.chart_cold_loading import create_chart_cold_loading
 # from freezetracker.chart_ely_aggregate import create_chart_ely_aggregate
 # from freezetracker.chart_freeze_thaw import create_chart_freeze_thaw
-from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
-from freezetracker.chart_frost_span import create_chart_frost_span
+# from freezetracker.chart_frost_max_depth import create_chart_frost_max_depth
+# from freezetracker.chart_frost_span import create_chart_frost_span
 from freezetracker.common_content import default_winter_list
 from freezetracker.common_logger import get_logger
 
@@ -214,13 +214,17 @@ class FrostCharts(param.Parameterized):
 
     @param.depends("selected_winters")
     def depth_chart(self):
-        chart = create_chart_frost_max_depth(self.is_wasm, self.selected_winters)
-        return pn.Column(chart, sizing_mode="stretch_both")
+        column = pn.Column()
+        # chart = create_chart_frost_max_depth(self.is_wasm, self.selected_winters)
+        # column = pn.Column(chart, sizing_mode="stretch_both")
+        return column
 
     @param.depends("selected_winters")
     def span_chart(self):
-        chart = create_chart_frost_span(self.is_wasm, self.selected_winters)
-        return pn.Column(chart, sizing_mode="stretch_both")
+        column = pn.Column()
+        # chart = create_chart_frost_span(self.is_wasm, self.selected_winters)
+        # column = pn.Column(chart, sizing_mode="stretch_both")
+        return column
 
     @param.depends("selected_winters")
     def freeze_thaw_charts(self):
