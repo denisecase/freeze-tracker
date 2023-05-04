@@ -203,7 +203,6 @@ def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
     logger.info(f"Reading data from github: {from_github}")
     if from_github:
         try:
-            # "https://raw.githubusercontent.com/denisecase/freeze-tracker/main/config.ini"
             url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/{fname}"
             response = requests.get(url)
             response.raise_for_status()
@@ -820,9 +819,8 @@ def empty_chart_placeholder():
 
 
 def get_current_ely_temp_pane():
-    is_WASM()
-    # temp = get_current_temperature(is_wasm, "ELY")
-    temp = 60.1
+    is_wasm = is_WASM()
+    temp = get_current_temperature(is_wasm, "ELY")
     if temp is not None:
         return pn.pane.Markdown(f"## Ely: {round(temp)}°F")
     else:
@@ -830,9 +828,8 @@ def get_current_ely_temp_pane():
 
 
 def get_current_orr_temp_pane():
-    is_WASM()
-    # temp = get_current_temperature(is_wasm, "ORR")
-    temp = 60.2
+    is_wasm = is_WASM()
+    temp = get_current_temperature(is_wasm, "ORR")
 
     if temp is not None:
         return pn.pane.Markdown(f"## Orr: {round(temp)}°F")
