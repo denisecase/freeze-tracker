@@ -70,30 +70,9 @@ def is_WASM() -> bool:
 
 def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):
     """Configure a common logger for the application"""
+    logging.basicConfig(filename=log_file, level=log_level)
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
-
-    # Return the logger if it already has handlers
-    if logger.hasHandlers():
-        return logger
-
-    # Create a file handler for writing logs to a file
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(log_level)
-
-    # Create a console handler for printing logs to the console
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-
-    # Create a formatter for log messages
-    formatter = logging.Formatter("%(asctime)s.%(name)s.%(levelname)s: %(message)s")
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-
-    # Add the handlers to the logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
     return logger
 
 
@@ -175,7 +154,6 @@ def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
     logger.info(f"Reading data from github: {from_github}")
     if from_github:
         try:
-            # "https://raw.githubusercontent.com/denisecase/freeze-tracker/main/config.ini"
             url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/{fname}"
             response = requests.get(url)
             response.raise_for_status()
@@ -792,9 +770,8 @@ def empty_chart_placeholder():
 
 
 def get_current_ely_temp_pane():
-    is_WASM()
-    # temp = get_current_temperature(is_wasm, "ELY")
-    temp = 60.1
+    is_wasm = is_WASM()
+    temp = get_current_temperature(is_wasm, "ELY")
     if temp is not None:
         return pn.pane.Markdown(f"## Ely: {round(temp)}°F")
     else:
@@ -802,9 +779,8 @@ def get_current_ely_temp_pane():
 
 
 def get_current_orr_temp_pane():
-    is_WASM()
-    # temp = get_current_temperature(is_wasm, "ORR")
-    temp = 60.2
+    is_wasm = is_WASM()
+    temp = get_current_temperature(is_wasm, "ORR")
 
     if temp is not None:
         return pn.pane.Markdown(f"## Orr: {round(temp)}°F")
@@ -1021,7 +997,7 @@ def create_dashboard():
 
     dashboard = pn.template.FastListTemplate(
         title=title_string,
-        favicon="favicon.ico",  # place in this folder
+        # favicon="favicon.ico",  # place in this folder
         sidebar=create_template_sidebar(winter_multiselect_widget),
         main=initial_main_panel,
         header=create_github_pane(),  # Add the GitHub icon to the header

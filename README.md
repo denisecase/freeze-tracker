@@ -130,7 +130,16 @@ panel serve --show --autoreload app.py
 panel convert app.py --to pyodide-worker --out .
 ```
 
-IMPORTANT! Before, pushing, edit app.js is_WASM() to return True.
+IMPORTANT! 
+
+Before pushing, edit 
+
+app.js: Edit is_WASM() to return True.
+
+app.html:
+
+  <title>Freeze Tracker Dashboard</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
 
 In VS Code, open app.html with LiveServer to test.
 

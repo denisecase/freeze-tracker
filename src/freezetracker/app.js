@@ -119,30 +119,9 @@ def is_WASM() -> bool:
 
 def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):
     """Configure a common logger for the application"""
+    logging.basicConfig(filename=log_file, level=log_level)
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
-
-    # Return the logger if it already has handlers
-    if logger.hasHandlers():
-        return logger
-
-    # Create a file handler for writing logs to a file
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(log_level)
-
-    # Create a console handler for printing logs to the console
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-
-    # Create a formatter for log messages
-    formatter = logging.Formatter("%(asctime)s.%(name)s.%(levelname)s: %(message)s")
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-
-    # Add the handlers to the logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
     return logger
 
 
@@ -1070,7 +1049,7 @@ def create_dashboard():
 
     dashboard = pn.template.FastListTemplate(
         title=title_string,
-        favicon="favicon.ico",  # place in this folder
+        # favicon="favicon.ico",  # place in this folder
         sidebar=create_template_sidebar(winter_multiselect_widget),
         main=initial_main_panel,
         header=create_github_pane(),  # Add the GitHub icon to the header
