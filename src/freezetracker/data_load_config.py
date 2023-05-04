@@ -24,6 +24,8 @@ from freezetracker.common_logger import get_logger
 
 logger = get_logger("data_load_config")
 
+# DATA LOAD CONFIG
+
 
 def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
     """Read the configuration file"""

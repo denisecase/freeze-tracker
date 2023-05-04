@@ -16,6 +16,8 @@ from freezetracker.common_logger import get_logger
 
 logger = get_logger("data_load")
 
+# DATA LOAD
+
 
 def read_data_processed_csv_to_df(is_WASM, fname):
     github_repo = "freeze-tracker"

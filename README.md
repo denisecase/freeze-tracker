@@ -115,9 +115,13 @@ just install
 
 ## Run the Main App
 
+Either one of these will work.
+
 ```powershell
 cd src/freezetracker
+panel serve --show app.py
 panel serve --show --autoreload app.py
+
 ```
 
 ## Convert the Main App to Host on GitHub Pages
@@ -126,7 +130,7 @@ panel serve --show --autoreload app.py
 panel convert app.py --to pyodide-worker --out .
 ```
 
-Edit app.py is_WASM() to return True.
+IMPORTANT! Before, pushing, edit app.js is_WASM() to return True.
 
 In VS Code, open app.html with LiveServer to test.
 

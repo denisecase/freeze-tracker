@@ -13,11 +13,9 @@ set shell := ["powershell.exe", "-c"]
 default:
     just --list
 
-# Install for production
 install:
     python -m pip install -e .[dev] 
 
-# Delete all temporary files
 clean:
     if (Test-Path .ipynb_checkpoints) { Remove-Item .ipynb_checkpoints -Recurse -Force }
     if (Test-Path **/.ipynb_checkpoints) { Remove-Item **/.ipynb_checkpoints -Recurse -Force }
@@ -34,12 +32,9 @@ clean:
     if (Test-Path .ruff_cache) { Remove-Item .ruff_cache -Recurse -Force }
     if (Test-Path requirements.txt) { Remove-Item requirements.txt -Force }    
 
-
-# Lint using ruff
 ruff:
     ruff .
 
-# Format files using black
 format: sort
     ruff . --fix
     black .
@@ -48,13 +43,6 @@ sort:
     isort pyproject.toml
     isort .
 
-
-# Run tests
-test:
-    source .venv/bin/activate &&
-    pytest tests/ --cov=src --cov-report xml --log-level=WARNING --disable-pytest-warnings
-
-# Run checks (ruff + test)
 check:
     ruff check .
     black --check .
