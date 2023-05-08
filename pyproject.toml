@@ -32,7 +32,6 @@ dependencies = [
   "openpyxl",
   "pandas",
   "panel",
-  "plotly",
   "pylightxl",
   "python-dotenv",
   "requests",

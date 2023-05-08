@@ -48,7 +48,6 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
-import plotly.express as px
 import requests
 from holoviews import Options, dim, opts  # noqa
 from matplotlib.colors import LinearSegmentedColormap
@@ -344,11 +343,9 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             color="CITY_COLOR",
         )
 
-        # Add grey dashed spines for Month starts
+        # Add grey  spines for Month starts
         for i, month_start in enumerate(month_starts):
-            month_line = hv.VLine(month_start).opts(
-                line_color="gray", line_dash="dashed", line_width=1
-            )
+            month_line = hv.VLine(month_start).opts(line_color="gray", line_width=1)
             month_text = hv.Text(
                 month_start + 15, single_winter_df["CUMM_COLD_F"].min(), month_names[i]
             ).opts(text_font_size="8pt", align="center")
@@ -358,17 +355,13 @@ def create_chart_cold_loading(is_wasm, selected_winters):
         # Add a vertical line for today based on days after July 1
         now = datetime.now()
         today_days_after_Jul_1 = get_days_after_Jul_1_from_date_string(now)
-        today_line = hv.VLine(today_days_after_Jul_1).opts(
-            line_color=today_color, line_dash="dashed", line_width=2
-        )
+        today_line = hv.VLine(today_days_after_Jul_1).opts(line_color=today_color, line_width=2)
         figCold = today_line * figCold
         figHot = today_line * figHot
 
         incident_days = get_incident_days(name)
         for incident_day in incident_days:
-            incident_vline = hv.VLine(incident_day).opts(
-                line_color=incident_color, line_dash="dashed", line_width=2
-            )
+            incident_vline = hv.VLine(incident_day).opts(line_color=incident_color, line_width=2)
             figCold *= incident_vline
             figHot *= incident_vline
 
@@ -513,16 +506,13 @@ def create_chart_cold_loading_vs_frost_depth(is_wasm):
             ylabel="FROST_DEPTH_in",
             width=800,
             height=600,
-            ylim=(0, 100),
-            xlim=(0, 4000),
+            ylim=(0, 90),
+            xlim=(0, 2000),
             color="CITY_COLOR",
         )
 
         # Create horizontal lines for every 12 inches (1 foot) of frost depth
-        frost_lines = [
-            hv.Curve([(0, i), (4000, i)]).opts(color="gray", line_dash="dashed")
-            for i in range(12, 100, 12)
-        ]
+        frost_lines = [hv.Curve([(0, i), (4000, i)]).opts(color="gray") for i in range(12, 100, 12)]
 
         # Overlay the horizontal lines on top of the scatter chart
         figCold = figCold * hv.Overlay(frost_lines)
@@ -542,7 +532,7 @@ def plot_cumulative_data(names, cumulative_types):
     if not set(cumulative_types).issubset(valid_cumulative_types):
         raise ValueError("Invalid cumulative_types. Choose from 'CUMM_COLD_F', 'CUMM_HOT_F'.")
 
-    filtered_df = combined_df[combined_df["NAME"].isin(names)]
+    filtered_df = combined_df_ely[combined_df_ely["NAME"].isin(names)]
     # Create a new DataFrame with columns for 'INDEX', 'Value', 'NAME', and 'Type'
     plot_df = pd.DataFrame(columns=["INDEX", "Value", "NAME", "Type"])
 
@@ -550,25 +540,29 @@ def plot_cumulative_data(names, cumulative_types):
         temp_df = filtered_df[["INDEX", cumulative_type, "NAME"]].copy()
         temp_df.columns = ["INDEX", "Value", "NAME"]
         temp_df["Type"] = cumulative_type
-        plot_df = plot_df._append(temp_df)
+        plot_df = pd.concat([plot_df, temp_df], ignore_index=True)
 
-    fig = px.line(
-        plot_df,
-        x="INDEX",
-        y="Value",
-        color="NAME",
-        line_dash="Type",
-        title="Cumulative Degree Days",
-        labels={"Value": "Degree Days"},
-    )
+    plots = []
+    for cumulative_type in cumulative_types:
+        temp_df = plot_df[plot_df["Type"] == cumulative_type]
+        plot = temp_df.hvplot.line(
+            x="INDEX",
+            y="Value",
+            by="NAME",
+            title="Cumulative Degree Days",
+            ylabel="Degree Days",
+            height=400,
+            width=600,
+        ).opts()
+        plots.append(plot)
 
-    # fig.show()
-    return pn.pane.Plotly(fig, sizing_mode="stretch_both")
+    fig = hv.Layout(plots).cols(1)
+    return pn.pane.HoloViews(fig, sizing_mode="stretch_both")
 
 
 def create_chart_ely_aggregate(is_wasm):
     dfs = []
-    global combined_df
+    global combined_df_ely
 
     # Loop over years and cities
     for startYear in range(2010, 2023):
@@ -577,15 +571,15 @@ def create_chart_ely_aggregate(is_wasm):
             logger.info(f"FINISHED reading visualization input files for {city}")
 
     # Concatenate all dataframes into one
-    combined_df = pd.concat(dfs)
+    combined_df_ely = pd.concat(dfs)
 
     # Ensure the 'DATE' column has a consistent data type
-    combined_df["DATE"] = pd.to_datetime(combined_df["DATE"])
+    combined_df_ely["DATE"] = pd.to_datetime(combined_df_ely["DATE"])
 
     # Reset index to start from July 1
-    combined_df["Days"] = (
-        combined_df["DATE"]
-        - pd.to_datetime(combined_df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
+    combined_df_ely["Days"] = (
+        combined_df_ely["DATE"]
+        - pd.to_datetime(combined_df_ely["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
     ).dt.days
 
     # Call the new function with the desired names and cumulative_type
@@ -593,33 +587,35 @@ def create_chart_ely_aggregate(is_wasm):
     cumulative_types = ["CUMM_COLD_F", "CUMM_HOT_F"]
     plot_cumulative_data(names_to_show, cumulative_types)
 
-    figCold = px.line(
-        combined_df,
+    figCold = combined_df_ely.hvplot.line(
         x="INDEX",
         y="CUMM_COLD_F",
-        color="NAME",
-        line_group="NAME",
+        by="NAME",
         title="Cumulative Freeze Degree Days (Ely, MN)",
+        height=400,
+        width=600,
+    ).opts(
+        xlabel="Days after July 1",
+        xlim=(0, 365),
+        ylabel="Degree-Days below freezing",
+        ylim=(0, 6000),
     )
-    figCold.update_xaxes(title_text="Days after July 1", range=[0, 365])
-    figCold.update_yaxes(title_text="Degree-Days below freezing", range=[0, 6000])
-    figCold.update_layout(height=400, width=600)
 
-    figHot = px.line(
-        combined_df,
+    figHot = combined_df_ely.hvplot.line(
         x="INDEX",
         y="CUMM_HOT_F",
-        color="CITY",
-        line_group="NAME",
+        by="CITY",
         title="Cumulative Thaw Degree Days (Ely, MN)",
+        height=400,
+        width=600,
+    ).opts(
+        xlabel="Days after July 1",
+        xlim=(0, 365),
+        ylabel="Degree-Days above thawing",
+        ylim=(0, 6000),
     )
-    figHot.update_xaxes(title_text="Days after July 1", range=[0, 365])
-    figHot.update_yaxes(title_text="Degree-Days above thawing", range=[0, 6000])
 
-    figHot.update_layout(height=400, width=600)
-    col_cold = pn.Column(figCold)
-    col_hot = pn.Column(figHot)
-    component = pn.Row(col_cold, col_hot)
+    component = pn.Row(figCold, figHot)
     return component
 
 
@@ -716,11 +712,9 @@ def create_chart_freeze_thaw(is_wasm, selected_winters):
             ),
         )
 
-        # Add grey dashed spines
+        # Add grey spines
         for i, month_start in enumerate(month_starts):
-            month_line = hv.VLine(month_start).opts(
-                line_color="gray", line_dash="dashed", line_width=1
-            )
+            month_line = hv.VLine(month_start).opts(line_color="gray", line_width=1)
             month_text = hv.Text(
                 month_start + 15, winter_df["THAW_DEPTH_in"].min(), month_names[i]
             ).opts(text_font_size="8pt", align="center")
@@ -859,7 +853,7 @@ def create_chart_frost_span(is_wasm, selected_winters):
     # Add vertical lines and month labels
     chart = hv.Overlay(segments)
     for i, month_start in enumerate(month_starts):
-        month_line = hv.VLine(month_start).opts(line_color="gray", line_dash="dashed", line_width=1)
+        month_line = hv.VLine(month_start).opts(line_color="gray", line_width=1)
         month_text = hv.Text(month_start + 15, df["Winter"].min(), month_names[i]).opts(
             text_font_size="8pt", align="center"
         )
@@ -868,9 +862,7 @@ def create_chart_frost_span(is_wasm, selected_winters):
     # Add a blue vertical line for today based on days after July 1
     now = datetime.now()
     today_days_after_Jul_1 = get_days_after_Jul_1_from_date_string(now)
-    today_line = hv.VLine(today_days_after_Jul_1).opts(
-        line_color=today_color, line_dash="dashed", line_width=2
-    )
+    today_line = hv.VLine(today_days_after_Jul_1).opts(line_color=today_color, line_width=2)
     chart = today_line * chart
 
     # Add a vertical line for each incident based on days after July 1
@@ -880,7 +872,7 @@ def create_chart_frost_span(is_wasm, selected_winters):
     for idx, row in df.iterrows():
         incident_days_after_Jul_1 = get_days_after_Jul_1_from_date_string(row["Date"])
         incident_line = hv.VLine(incident_days_after_Jul_1).opts(
-            line_color=incident_color, line_dash="dashed", line_width=1
+            line_color=incident_color, line_width=1
         )
         chart = incident_line * chart
 
