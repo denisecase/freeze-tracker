@@ -84,6 +84,16 @@ it's important to run this command in PowerShell Core.
 When using Just in VS Code, 
 remember to choose the PowerShell Core Terminal.
 
+## Essential Packages (Universal)
+
+Essential packages can go in your default Python installation (rather then each .venv).
+
+```shell
+python -m pip install --upgrade pip build setuptools wheel 
+python -m pip install --upgrade black ruff
+python -m pip install --upgrade ipykernel jupyterlab
+```
+
 ## Create a Virtual Environment (Just Once)
 
 ```shell
@@ -96,11 +106,9 @@ When VS Code Python Extension offers to select the Environment, say Yes.
 
 When starting a new session, you'll need to activate the virtual environment.
 
-Activate it in PowerShell: `.venv\Scripts\Activate`
-
-Activate it in macOS/Linux Terminal:  `source .venv/bin/`
-
-If you ever want to deactivate it, run `deactivate`.
+- Activate it in PowerShell: `.venv\Scripts\Activate`
+- Activate it in macOS/Linux Terminal:  `source .venv/bin/`
+- To deactivate it, run `deactivate`.
 
 ## Install Dependencies
 
@@ -108,9 +116,9 @@ Install dependencies from pyproject.toml. The -e flag installs in editable mode.
 Editable mode allows making changes to the source code and having those changes
 reflected in the installed package without having to reinstall the package.
 
-```powershell
+```shell
 python -m pip install --upgrade pip build setuptools wheel 
-just install
+python -m pip install -e .[dev]
 ```
 
 ## Run the Main App

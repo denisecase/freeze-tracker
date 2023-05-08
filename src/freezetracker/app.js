@@ -440,6 +440,135 @@ def create_chart_cold_loading(is_wasm, selected_winters):
     return panel_grid_box
 
 
+
+# CHART COLD LOADING VS FROST DEPTHS (ONE PER WINTER)
+
+def prepare_chart_cold_loading_vs_frost_depth_data_files_one_per_winter(is_wasm, selected_winters):
+    frost_df = read_data_processed_csv_to_df(is_wasm, "frost_stlouis_out.csv")
+    # County,Date,THAW_DEPTH_in,FROST_DEPTH_in,Winter,days_after_Jul_1
+    dfs = {}
+
+    for startYear in range(2010, 2023):
+        yearly_dfs = []
+        city = "ORR"
+        winter = f"{startYear}-{startYear+1}"
+        df_temp = read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city)
+        df_temp["CITY"] = city
+        df_temp["Winter"] = winter
+        yearly_dfs.append(df_temp)
+        dfs[winter] = pd.concat(yearly_dfs)
+
+    for name in selected_winters:
+        single_winter_df = dfs[name]
+
+        # Ensure the 'DATE' column has a consistent data type
+        single_winter_df["DATE"] = pd.to_datetime(single_winter_df["DATE"])
+
+        # Reset index to start from July 1
+        single_winter_df["Days"] = (
+            single_winter_df["DATE"]
+            - pd.to_datetime(single_winter_df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
+        ).dt.days
+
+        # Force city to upper case
+        single_winter_df["CITY_UPPER"] = single_winter_df["CITY"].str.upper()
+
+        single_winter_df["days_after_Jul_1"] = single_winter_df["Days"]
+
+        # Join the frost_df and single_winter_df on the 'Winter' and 'days_after_Jul_1' columns
+        # Keep all records from the single_winter_df
+        combined_df = single_winter_df.merge(frost_df, left_on=["Winter", "days_after_Jul_1"], right_on=["Winter", "days_after_Jul_1"], how='left')
+
+
+         # Filter combined_df to only include rows between July 1 and June 30
+        #combined_df = combined_df[(combined_df["DATE"] >= f"{name[:4]}-07-01") & (combined_df["DATE"] <= f"{name[-4:]}-06-30")]
+
+        # Write the combined_df to a CSV file (one per winter) into the processed data folder
+        output_file = f"cold_loading_vs_frost_depth_{name}_orr.csv"
+        cols = [
+            'CITY',
+            'County',
+            'Winter',
+            'days_after_Jul_1',
+            'IYEAR','IMONTH','IDAY','DATE',
+            'AVG_DAILY_TEMP_F',
+            'HOT_F', 'CUMM_HOT_F',
+            'COLD_F', 'CUMM_COLD_F',
+            'THAW_DEPTH_in',
+            'FROST_DEPTH_in'
+        ]
+
+        combined_df[cols].to_csv(get_data_processed_path_from_code_folder(output_file), index=False)
+
+
+# Call it once to get the data files
+# prepare_chart_cold_loading_vs_frost_depth_data_files_one_per_winter(False, default_winter_list)
+
+def read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winterString, cityString):
+    """Read a file like 'cold_loading_vs_frost_depth_2010-2011_orr' into a data frame
+    @ param yearString: string with the year range, e.g. '2019-2020'
+    @ param cityString: string with the city name, e.g. 'ORR'
+    @ return: data frame with the data"""
+    fn_start = "cold_loading_vs_frost_depth"
+    fname = fn_start + "_" + winterString + "_" + cityString.lower() + ".csv"
+    df = read_data_processed_csv_to_df(is_wasm, fname)
+    return df
+
+def create_chart_cold_loading_vs_frost_depth(is_wasm):
+    """Create a scatter chart each winter of cold loading chart vs frost depth"""
+    dfs = {}
+    winter_charts = []
+
+    # Loop over years and read in data files
+    for startYear in range(2010, 2023):
+        yearly_dfs = []
+        for city in default_city_list:
+            winter = f"{startYear}-{startYear+1}"
+            df_temp = read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winter, city)
+            yearly_dfs.append(df_temp)
+            logger.info(f"FINISHED reading cold loading vs frost depth input files for {city}")
+        dfs[winter] = pd.concat(yearly_dfs)
+
+    for name in default_winter_list:
+        note = ""
+        if name == "2021-2022":
+            note = "(INCIDENT: 03/31, 04/23)"
+        elif name == "2022-2023":
+            note = "(INCIDENT: 04/15)"
+
+        single_winter_df = dfs[name]
+
+        # Create a column for city color
+        single_winter_df["CITY_COLOR"] = single_winter_df["CITY"].apply(get_city_color)
+
+        # Create an hvPlot scatter chart of frost depth vs cumulative cold degree days
+        figCold = single_winter_df.hvplot.scatter(
+            y="FROST_DEPTH_in",
+            x="CUMM_COLD_F",
+            by="CITY",
+            title=f"Frost depth (in) vs Cumulative Freezing Degree-Days {note}",
+            xlabel="Degree-Days below freezing",
+            ylabel="FROST_DEPTH_in",
+            width=800,
+            height=600,
+            ylim=(0, 100),
+            xlim=(0, 4000),
+            color="CITY_COLOR",
+        )
+
+        # Create horizontal lines for every 12 inches (1 foot) of frost depth
+        frost_lines = [hv.Curve([(0, i), (4000, i)]).opts(color='gray', line_dash='dashed') for i in range(12, 100, 12)]
+
+        # Overlay the horizontal lines on top of the scatter chart
+        figCold = figCold *  hv.Overlay(frost_lines)
+        winter_charts.append(pn.pane.HoloViews(figCold))
+       
+    # Wrap the winter_charts list in a GridBox layout with two columns
+    panel_grid_box = pn.GridBox(*winter_charts, ncols=2)
+    return panel_grid_box
+
+
+
 # CHART ELY AGGREGATE
 
 
@@ -1000,6 +1129,7 @@ def create_template_main(winter_multiselect_widget):
         span_panel = frost_charts.span_chart_object or empty_chart_placeholder()
         freeze_thaw_charts = frost_charts.freeze_thaw_charts_object
         loading_charts_gridbox = frost_charts.loading_charts_object or empty_chart_placeholder()
+        loading_vs_frost_charts_gridbox = create_chart_cold_loading_vs_frost_depth(is_WASM()) or empty_chart_placeholder()
 
         top_row = pn.Row(depth_panel, span_panel)
         is_wasm = is_WASM()
@@ -1015,6 +1145,7 @@ def create_template_main(winter_multiselect_widget):
             freeze_thaw_gridbox,
             ely_aggregate_row,
             loading_charts_gridbox,
+            loading_vs_frost_charts_gridbox
         )
         return column
 
