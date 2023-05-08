@@ -15,7 +15,7 @@ async function startApplication() {
   self.pyodide.globals.set("sendPatch", sendPatch);
   console.log("Loaded!");
   await self.pyodide.loadPackage("micropip");
-  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'configparser', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'io', 'json', 'logging', 'matplotlib', 'numpy', 'pandas', 'param', 'pathlib', 'requests', 'typing']
+  const env_spec = ['https://cdn.holoviz.org/panel/0.14.4/dist/wheels/bokeh-2.4.3-py3-none-any.whl', 'https://cdn.holoviz.org/panel/0.14.4/dist/wheels/panel-0.14.4-py3-none-any.whl', 'pyodide-http==0.1.0', 'configparser', 'datetime', 'holoviews>=1.15.4', 'holoviews>=1.15.4', 'hvplot', 'io', 'json', 'logging', 'matplotlib', 'numpy', 'pandas', 'param', 'pathlib', 'requests', 'timeit', 'typing']
   for (const pkg of env_spec) {
     let pkg_name;
     if (pkg.endsWith('.whl')) {
@@ -87,6 +87,7 @@ import io
 import json
 import logging
 import pathlib
+import timeit
 from datetime import datetime
 from typing import Union
 
@@ -98,6 +99,7 @@ import pandas as pd
 import panel as pn
 import param
 import requests
+from bokeh.models import FuncTickFormatter
 from holoviews import Options, dim, opts  # noqa
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -127,7 +129,36 @@ def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):
 logger = get_logger("app")
 
 
+def measure_time(func):
+    """Decorator to measure the time it takes to execute a function"""
+
+    def wrapper(*args, **kwargs):
+        elapsed_time = timeit.timeit(lambda: func(*args, **kwargs), number=1)
+        logger.info(f"{func.__name__} took {elapsed_time:.2f} seconds to execute.")
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 # COMMON CONTENT
+
+min_winter_start_year = 2010
+max_winter_start_year = 2022  # 2022-2023 is the most recent winter
+
+min_season_day = 0
+max_season_day = 365
+
+min_cold_loading = 0
+max_cold_loading = 3000
+
+min_hot_loading = 0
+max_hot_loading = 6000
+
+min_frost_depth_in = 0
+max_frost_depth_in = 100
+
+default_chart_width_px = 800
+default_chart_height_px = 600
 
 today_color = "purple"
 incident_color = "orange"
@@ -323,13 +354,14 @@ def read_df_from_winter_and_city(is_wasm, yearString, cityString):
     return df
 
 
-def create_chart_cold_loading(is_wasm, selected_winters):
+@measure_time
+def create_chart_cold_loading(is_wasm):
     """Create a cold loading chart and a hot loading chart for each winter"""
     dfs = {}
     winter_charts = []
 
     # Loop over years and read in data files
-    for startYear in range(2010, 2023):
+    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         yearly_dfs = []
         for city in default_city_list:
             df_temp = read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city)
@@ -338,7 +370,7 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             logger.info(f"FINISHED reading visualization input files for {city}")
         dfs[f"{startYear}-{startYear+1}"] = pd.concat(yearly_dfs)
 
-    for name in selected_winters:
+    for name in default_winter_list:
         note = ""
         if name == "2021-2022":
             note = "(INCIDENT: 03/31, 04/23)"
@@ -370,10 +402,10 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             title=f"Cumulative Freezing Degree-Days {name} {note}",
             ylabel="Degree-Days below freezing",
             xlabel="Days after July 1",
-            width=800,
-            height=600,
-            xlim=(0, 365),
-            ylim=(0, 4000),
+            width=default_chart_width_px,
+            height=default_chart_height_px,
+            xlim=(min_season_day, max_season_day),
+            ylim=(min_cold_loading, max_cold_loading),
             color="CITY_COLOR",
         )
 
@@ -385,10 +417,10 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             title=f"Cumulative Thaw Degree-Days {name}",
             ylabel="Degree-Days above thawing",
             xlabel="Days after July 1",
-            width=800,
-            height=600,
-            xlim=(0, 365),
-            ylim=(0, 8000),
+            width=default_chart_width_px,
+            height=default_chart_height_px,
+            xlim=(min_season_day, max_season_day),
+            ylim=(min_hot_loading, max_hot_loading),
             color="CITY_COLOR",
         )
 
@@ -414,12 +446,29 @@ def create_chart_cold_loading(is_wasm, selected_winters):
             figCold *= incident_vline
             figHot *= incident_vline
 
+        caution_level = max_cold_loading - 300
+        danger_level = max_cold_loading - 100
+
         caution_zone = hv.Area(
-            [(0, 1700), (365, 1700), (365, 1900), (0, 1900)], vdims="y", name="Caution Zone"
+            [
+                (min_season_day, caution_level),
+                (max_season_day, caution_level),
+                (max_season_day, danger_level),
+                (min_season_day, danger_level),
+            ],
+            vdims="y",
+            name="Caution Zone",
         ).opts(fill_color="yellow", alpha=0.3)
 
         danger_zone = hv.Area(
-            [(0, 1900), (365, 1900), (365, 4000), (0, 4000)], vdims="y", name="Danger Zone"
+            [
+                (min_season_day, danger_level),
+                (max_season_day, danger_level),
+                (max_season_day, max_cold_loading),
+                (min_season_day, max_cold_loading),
+            ],
+            vdims="y",
+            name="Danger Zone",
         ).opts(fill_color="red", alpha=0.3)
 
         # Add the caution and danger zones to the figCold chart
@@ -441,7 +490,7 @@ def prepare_chart_cold_loading_vs_frost_depth_data_files_one_per_winter(is_wasm,
     # County,Date,THAW_DEPTH_in,FROST_DEPTH_in,Winter,days_after_Jul_1
     dfs = {}
 
-    for startYear in range(2010, 2023):
+    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         yearly_dfs = []
         city = "ORR"
         winter = f"{startYear}-{startYear+1}"
@@ -518,16 +567,17 @@ def read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winterString,
     return df
 
 
+@measure_time
 def create_chart_cold_loading_vs_frost_depth(is_wasm):
     """Create a scatter chart each winter of cold loading chart vs frost depth"""
     dfs = {}
     winter_charts = []
 
     # Loop over years and read in data files
-    for startYear in range(2010, 2023):
+    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
+        winter = f"{startYear}-{startYear+1}"
         yearly_dfs = []
         for city in default_city_list:
-            winter = f"{startYear}-{startYear+1}"
             df_temp = read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winter, city)
             yearly_dfs.append(df_temp)
             logger.info(f"FINISHED reading cold loading vs frost depth input files for {city}")
@@ -549,22 +599,35 @@ def create_chart_cold_loading_vs_frost_depth(is_wasm):
         figCold = single_winter_df.hvplot.scatter(
             y="FROST_DEPTH_in",
             x="CUMM_COLD_F",
-            by="CITY",
-            title=f"Frost depth (in) vs Cumulative Freezing Degree-Days {note}",
+            title=f"ORR {winter} Frost depth (in) vs Freezing Degree-Days {note}",
             xlabel="Degree-Days below freezing",
             ylabel="FROST_DEPTH_in",
-            width=800,
-            height=600,
-            ylim=(0, 90),
-            xlim=(0, 2000),
+            width=default_chart_width_px,
+            height=default_chart_height_px,
+            ylim=(min_frost_depth_in, max_frost_depth_in),
+            xlim=(min_cold_loading, max_cold_loading),
             color="CITY_COLOR",
         )
 
         # Create horizontal lines for every 12 inches (1 foot) of frost depth
-        frost_lines = [hv.Curve([(0, i), (4000, i)]).opts(color="gray") for i in range(12, 100, 12)]
+        frost_lines = [
+            hv.Curve([(0, i), (4000, i)]).opts(color="gray", alpha=0.5) for i in range(12, 100, 12)
+        ]
 
         # Overlay the horizontal lines on top of the scatter chart
         figCold = figCold * hv.Overlay(frost_lines)
+
+        # Create a custom tick formatter for the y-axis
+        y_tick_formatter = FuncTickFormatter(
+            code="""
+            const feet = Math.round(tick / 12);
+            return feet + " ft";
+        """
+        )
+
+        # Apply the custom tick formatter to the y-axis
+        figCold = figCold.opts(opts.Scatter(yformatter=y_tick_formatter))
+
         winter_charts.append(pn.pane.HoloViews(figCold))
 
     # Wrap the winter_charts list in a GridBox layout with two columns
@@ -600,8 +663,8 @@ def plot_cumulative_data(names, cumulative_types):
             by="NAME",
             title="Cumulative Degree Days",
             ylabel="Degree Days",
-            height=400,
-            width=600,
+            width=default_chart_width_px,
+            height=default_chart_height_px,
         ).opts()
         plots.append(plot)
 
@@ -609,12 +672,13 @@ def plot_cumulative_data(names, cumulative_types):
     return pn.pane.HoloViews(fig, sizing_mode="stretch_both")
 
 
+@measure_time
 def create_chart_ely_aggregate(is_wasm):
     dfs = []
     global combined_df_ely
 
     # Loop over years and cities
-    for startYear in range(2010, 2023):
+    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         for city in ["ELY"]:
             dfs.append(read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city))
             logger.info(f"FINISHED reading visualization input files for {city}")
@@ -641,13 +705,13 @@ def create_chart_ely_aggregate(is_wasm):
         y="CUMM_COLD_F",
         by="NAME",
         title="Cumulative Freeze Degree Days (Ely, MN)",
-        height=400,
-        width=600,
+        height=default_chart_height_px,
+        width=default_chart_width_px,
     ).opts(
         xlabel="Days after July 1",
-        xlim=(0, 365),
+        xlim=(min_season_day, max_season_day),
         ylabel="Degree-Days below freezing",
-        ylim=(0, 6000),
+        ylim=(min_cold_loading, max_cold_loading),
     )
 
     figHot = combined_df_ely.hvplot.line(
@@ -655,13 +719,13 @@ def create_chart_ely_aggregate(is_wasm):
         y="CUMM_HOT_F",
         by="CITY",
         title="Cumulative Thaw Degree Days (Ely, MN)",
-        height=400,
-        width=600,
+        height=default_chart_height_px,
+        width=default_chart_width_px,
     ).opts(
         xlabel="Days after July 1",
-        xlim=(0, 365),
+        xlim=(min_season_day, max_season_day),
         ylabel="Degree-Days above thawing",
-        ylim=(0, 6000),
+        ylim=(min_hot_loading, max_hot_loading),
     )
 
     component = pn.Row(figCold, figHot)
@@ -707,6 +771,7 @@ def prepare_freeze_thaw_df(df):
 # prepare_freeze_thaw_chart_points()
 
 
+@measure_time
 def create_chart_freeze_thaw(is_wasm, selected_winters):
     """Create charts of freeze and thaw lines"""
     df = read_data_processed_csv_to_df(is_wasm, freeze_thaw_file_name_out)
@@ -755,8 +820,8 @@ def create_chart_freeze_thaw(is_wasm, selected_winters):
             opts.Scatter(
                 xlabel=f"{winter} last day: {short_last_date}, max in: {str(max_depth_in)}",
                 ylabel="Depth (inches)",
-                xlim=(90, 365),
-                ylim=(-10, 100),
+                xlim=(90, max_season_day),
+                ylim=(-10, max_frost_depth_in),
                 legend_position="top_left",
             ),
         )
@@ -782,6 +847,7 @@ def create_custom_colormap_frost_max_depth():
     return cmap
 
 
+@measure_time
 def create_chart_frost_max_depth(is_wasm, selected_winters):
     """Create a chart of the max frost depth"""
     depth_file_name = "frost_depth.csv"
@@ -810,8 +876,8 @@ def create_chart_frost_max_depth(is_wasm, selected_winters):
         title="Max Frost Depth (Orr, MN) Avg: {:.0f} in".format(avg_depth),
         xlabel="Winter",
         ylabel="Max Frost Depth (in)",
-        width=600,
-        height=400,
+        width=default_chart_width_px,
+        height=default_chart_height_px,
         rot=90,
     )
     # Add labels to each bar
@@ -856,6 +922,7 @@ def create_custom_colormap_frost_span():
     return cmap
 
 
+@measure_time
 def create_chart_frost_span(is_wasm, selected_winters):
     """Create a chart of the frost span"""
     span_file_name = "frost_span.csv"
@@ -933,7 +1000,7 @@ def create_chart_frost_span(is_wasm, selected_winters):
         title="Frost Span (Orr, MN)",
         xlabel="Days After July 1",
         ylabel="Winter",
-        xlim=(90, 365),
+        xlim=(90, max_season_day),
     )
     result = pn.Row(chart)
     return result
@@ -949,7 +1016,12 @@ orr_temp_pane = pn.pane.Markdown("")
 
 
 def empty_chart_placeholder():
-    return pn.pane.Markdown("Chart not available.", width=400, height=300, align="center")
+    return pn.pane.Markdown(
+        "Chart not available.",
+        height=default_chart_height_px,
+        width=default_chart_width_px,
+        align="center",
+    )
 
 
 def get_current_ely_temp_pane():
@@ -1071,7 +1143,6 @@ class FrostCharts(param.Parameterized):
     depth_chart_object = None
     span_chart_object = None
     freeze_thaw_charts_object = None
-    loading_charts_object = None
 
     @property
     def selected_winters(self):
@@ -1107,20 +1178,14 @@ class FrostCharts(param.Parameterized):
         charts = create_chart_freeze_thaw(self.is_wasm, self.selected_winters)
         return charts
 
-    @param.depends("selected_winters")
-    def loading_charts(self):
-        # charts = []
-        charts = create_chart_cold_loading(self.is_wasm, self.selected_winters)
-        return charts
-
     @param.depends("selected_winters", watch=True)
     def _update_charts(self, event=None):
         self.depth_chart_object = self.depth_chart()
         self.span_chart_object = self.span_chart()
         self.freeze_thaw_charts_object = self.freeze_thaw_charts()
-        self.loading_charts_object = self.loading_charts()
 
 
+@measure_time
 def create_template_main(winter_multiselect_widget):
     """Returns a panel that reacts to changes in the winter_multiselect_widget"""
     frost_charts = FrostCharts(selected_winters=winter_multiselect_widget.value)
@@ -1133,7 +1198,7 @@ def create_template_main(winter_multiselect_widget):
         depth_panel = frost_charts.depth_chart_object or empty_chart_placeholder()
         span_panel = frost_charts.span_chart_object or empty_chart_placeholder()
         freeze_thaw_charts = frost_charts.freeze_thaw_charts_object
-        loading_charts_gridbox = frost_charts.loading_charts_object or empty_chart_placeholder()
+        loading_charts_gridbox = create_chart_cold_loading(is_WASM()) or empty_chart_placeholder()
         loading_vs_frost_charts_gridbox = (
             create_chart_cold_loading_vs_frost_depth(is_WASM()) or empty_chart_placeholder()
         )
@@ -1174,6 +1239,7 @@ def create_github_pane():
     return github_pane
 
 
+@measure_time
 def create_dashboard():
     """Create a Panel dashboard.
     The main panel is created with a function that
