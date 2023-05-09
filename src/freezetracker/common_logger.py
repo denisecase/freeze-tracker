@@ -28,6 +28,13 @@ Purpose:
 """
 
 import logging
+import pathlib
+
+
+def get_basename(path):
+    """Return the basename of a file path"""
+    bname = pathlib.Path(path).basename()
+    return bname
 
 
 def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):

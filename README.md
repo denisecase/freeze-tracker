@@ -60,38 +60,19 @@ MN provides frost/freeze data by county. For St. Louis County, it's from Orr.
 https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html
 
 
-## Installation
-
-Install some content globally for best results. 
-Install these to your default Python:
-
-```shell
-python --version
-python -m pip install --upgrade pip
-python -m pip install panel panel[pyodide] hvplot jupyterlab
-python -m pip install black ruff
-python -m pip install pyright
-
-```
-
-Install the Just command runner. For example, on Windows using Chocolatey:
-
-1. Open PowerShell Core as an Administrator
-2. Run the following command: `choco install just -y`
-
-Note that if you have both PowerShell Core and Windows PowerShell installed, 
-it's important to run this command in PowerShell Core.
-When using Just in VS Code, 
-remember to choose the PowerShell Core Terminal.
-
 ## Essential Packages (Universal)
 
 Essential packages can go in your default Python installation (rather then each .venv).
 
+
 ```shell
+python --version
 python -m pip install --upgrade pip build setuptools wheel 
-python -m pip install --upgrade black ruff
 python -m pip install --upgrade ipykernel jupyterlab
+python -m pip install --upgrade panel hvplot 
+python -m pip install --upgrade black ruff
+python -m pip install --upgrade pyright
+
 ```
 
 ## Create a Virtual Environment (Just Once)
@@ -118,6 +99,7 @@ reflected in the installed package without having to reinstall the package.
 
 ```shell
 python -m pip install --upgrade pip build setuptools wheel 
+python -m pip install --upgrade panel panel[pyodide] hvplot 
 python -m pip install -e .[dev]
 ```
 
@@ -164,22 +146,8 @@ on the machine has their own Python to customize without affecting other users.
 If you did not change the installation location during Python installation, 
 it's likely that Python installed in the default location.
 
-## pip check
 
-```
-pip install pip-tools
-pip list --outdated --format=columns
-pip-check
-```
-
-
-
-## Checking Versions and Updating
-
-```
-ruff --version
-poetry update ruff
-```
+## More about Commands
 
 `python -m pip install`  ensures that pip is installed 
 and executed within the context of the same Python installation 
@@ -196,7 +164,3 @@ into the site-packages directory.
 `pip install --upgrade build` is used to upgrade the Python package build, 
 which is a package that provides support for building and 
 distributing Python packages.
-
-`just install` uses the Just command runner to run the install recipe defined
-in the Justfile. 
-

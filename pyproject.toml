@@ -32,6 +32,8 @@ dependencies = [
   "openpyxl",
   "pandas",
   "panel",
+  "param",
+  "pyarrow",
   "pylightxl",
   "python-dotenv",
   "requests",
@@ -45,10 +47,7 @@ dev = [
     "ruff",
     "black",
     "isort",
-    "pyright",
-    "pytest",
-    "pytest-cov",
-    "sphinx"
+    "pyright"
 ]
 
 [project.urls]

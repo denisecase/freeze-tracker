@@ -14,7 +14,7 @@ default:
     just --list
 
 install:
-    python -m pip install -e .[dev] 
+    python -m pip install -e .[dev]
 
 clean:
     if (Test-Path .ipynb_checkpoints) { Remove-Item .ipynb_checkpoints -Recurse -Force }
