@@ -72,8 +72,8 @@ def get_logger(logger_name, filemode='w', log_file="app.log", log_level=logging.
     logger.propagate = False
 
     # Create a file handler for writing log messages to the specified log_file
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(log_level)
+    file_handler = logging.FileHandler(log_file, mode=filemode)
+    file_handler.setLevel(logging.DEBUG)
 
     # Create a stream handler for writing log messages to the console
     stream_handler = logging.StreamHandler()
@@ -247,11 +247,19 @@ def read_data_processed_csv_to_df(is_WASM, fname):
 
 # CHART COLD LOADING
 
-city_colors = {"ELY": "black", "ORR": "grey"}
-
-
 def get_city_color(city):
+    city_colors = {"ELY": "black", "ORR": "grey"}
     return city_colors.get(city.upper(), "black")
+
+
+def get_note_for_winter(name):
+    """Return a note to add to the chart title for the given winter"""
+    if name == "2021-2022":
+        return "(INCIDENT: 03/31, 04/23)"
+    elif name == "2022-2023":
+        return "(INCIDENT: 04/15)"
+    else:
+        return ""
 
 
 def get_incident_days_given_winter(winter_name):
@@ -272,7 +280,7 @@ def get_all_incident_days():
     return incident_days
 
 
-def read_df_from_winter_and_city(is_wasm, yearString, cityString):
+def read_df_cold_hot_loading_from_winter_and_city(is_wasm, yearString, cityString):
     """Read a file that starts with daily_temps_ into a data frame
     @ param yearString: string with the year range, e.g. '2019-2020'
     @ param cityString: string with the city name, e.g. 'ELY'
@@ -282,6 +290,12 @@ def read_df_from_winter_and_city(is_wasm, yearString, cityString):
     df = read_data_processed_csv_to_df(is_wasm, fname)
     df["NAME"] = yearString
     df["CITY"] = cityString
+    df["DATE"] = pd.to_datetime(df["DATE"])
+    df["Days"] = (
+        df["DATE"] - pd.to_datetime(df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
+    ).dt.days
+    df["CITY_UPPER"] = df["CITY"].str.upper()
+    df["CITY_COLOR"] = df["CITY_UPPER"].apply(get_city_color)
     return df
 
 
@@ -392,25 +406,31 @@ def add_to_chart_hzones_caution_danger(chart):
 
     return chart
 
+
 def create_chart_cold_loading(is_wasm):
     """Create a cold loading chart and a hot loading chart for each winter"""
 
-    try:
-        df_dictionary = read_input_data_for_cold_hot_loading_to_df_dic_by_winter(is_wasm)
-    except Exception as e:
-        logger.error(f"Error occurred while reading input data: {e}")
-        return create_pane_empty_chart()
-
     charts = []
-    for winter, df in df_dictionary.items():
+    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
+        winter = f"{startYear}-{startYear+1}"
+        winter_df_list = []
+        for city in default_city_list:
+            try:
+                df_temp = read_df_cold_hot_loading_from_winter_and_city(is_wasm, winter, city)
+                df_temp["CITY"] = city
+                winter_df_list.append(df_temp)
+            except Exception as e:
+                logger.error(f"Error occurred while reading input data: {e}")
+                continue
+
+        if not winter_df_list:
+            continue
+            
+        df = pd.concat(winter_df_list)
 
         note = get_note_for_winter(winter)
-
-        try: 
-            df = prepare_df_cold_hot_loading(df)
-        except Exception as e:
-            logger.error(f"Error occurred while prepare_df_cold_hot_loading for winter {winter}: {e}")
-            continue
+        month_overlays = get_chart_overlays_vline_per_month()
+        month_overlay = hv.Overlay(month_overlays)
 
         try: 
             figCold, figHot = create_cold_hot_loading_hvplot_charts(df, winter, note)
@@ -425,8 +445,6 @@ def create_chart_cold_loading(is_wasm):
             logger.error(f"Error adding vlines for today to CDD/HDD winter {winter}: {e}")
 
         try: 
-            month_overlays = get_chart_overlays_vline_per_month()
-            month_overlay = hv.Overlay(month_overlays)
             figCold = figCold * month_overlay
             figHot = figHot * month_overlay
         except Exception as e:
@@ -451,42 +469,6 @@ def create_chart_cold_loading(is_wasm):
         gridbox = create_pane_empty_chart()
 
     return gridbox
-
-
-def read_input_data_for_cold_hot_loading_to_df_dic_by_winter(is_wasm):
-    """Read input data files for each winter and return a dictionary of DataFrames"""
-
-    df_dictionary = {}
-    for startYear in range(min_winter_start_year, max_winter_start_year + 1):
-        yearly_dfs = []
-        for city in default_city_list:
-            winter = f"{startYear}-{startYear+1}"
-            df_temp = read_df_from_winter_and_city(is_wasm, winter, city)
-            df_temp["CITY"] = city
-            yearly_dfs.append(df_temp)
-        df_dictionary[winter] = pd.concat(yearly_dfs)
-    return df_dictionary
-
-
-def get_note_for_winter(name):
-    """Return a note to add to the chart title for the given winter"""
-    if name == "2021-2022":
-        return "(INCIDENT: 03/31, 04/23)"
-    elif name == "2022-2023":
-        return "(INCIDENT: 04/15)"
-    else:
-        return ""
-
-
-def prepare_df_cold_hot_loading(df):
-    """Preprocess the input DataFrame and return the preprocessed DataFrame"""
-    df["DATE"] = pd.to_datetime(df["DATE"])
-    df["Days"] = (
-        df["DATE"] - pd.to_datetime(df["IYEAR"].astype(str) + "-07-01", format="%Y-%m-%d")
-    ).dt.days
-    df["CITY_UPPER"] = df["CITY"].str.upper()
-    df["CITY_COLOR"] = df["CITY_UPPER"].apply(get_city_color)
-    return df
 
 
 def create_cold_hot_loading_hvplot_charts(df, name, note):
@@ -532,6 +514,7 @@ def create_cold_hot_loading_hvplot_charts(df, name, note):
 
     return figCold, figHot
 
+
 # CHART COLD LOADING VS FROST DEPTHS (ONE PER WINTER)
 
 
@@ -544,7 +527,7 @@ def prepare_chart_cold_loading_vs_frost_depth_data_files_one_per_winter(is_wasm)
         yearly_dfs = []
         city = "ORR"
         winter = f"{startYear}-{startYear+1}"
-        df_temp = read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city)
+        df_temp = read_df_cold_hot_loading_from_winter_and_city(is_wasm, winter, city)
         df_temp["CITY"] = city
         df_temp["Winter"] = winter
         yearly_dfs.append(df_temp)
@@ -614,10 +597,13 @@ def read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winterString,
     fn_start = "cold_loading_vs_frost_depth"
     fname = fn_start + "_" + winterString + "_" + cityString.lower() + ".csv"
     df = read_data_processed_csv_to_df(is_wasm, fname)
+    df["CITY"] = cityString
+    df["CITY_UPPER"] = df["CITY"].str.upper()
+    df["CITY_COLOR"] = df["CITY_UPPER"].apply(get_city_color)
     return df
 
 
-def create_chart_initial_cold_loading_vs_frost_depth(df, title_string):
+def create_chart_basic_cold_loading_vs_frost_depth(df, title_string):
     """Create an hvPlot scatter chart of frost depth vs cumulative cold degree days"""
     chart = df.hvplot.scatter(
         y="FROST_DEPTH_in",
@@ -710,33 +696,25 @@ def add_to_chart_y_tick_formatter_per_ft_of_frost(scatter_chart):
 def create_chart_cold_loading_vs_frost_depth(is_wasm):
     """Create a scatter chart each winter of cold loading chart vs frost depth"""
 
-    df_dictionary = {}
-
-    # Loop over years and read in data files
+    charts = []
     for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         winter = f"{startYear}-{startYear+1}"
-        yearly_dfs = []
         city = "ORR"
-        df_temp = read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winter, city)
-        yearly_dfs.append(df_temp)
-        df_dictionary[winter] = pd.concat(yearly_dfs)
+        try:
+            df = read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winter, city)
+        except Exception as e:
+            logger.error(f"Error occurred while reading input data: {e}")
+            continue
 
-    charts = []
-    for winter in default_winter_list:
         note = ""
         if winter == "2021-2022":
             note = "(INCIDENT: 03/31, 04/23)"
         elif winter == "2022-2023":
             note = "(INCIDENT: 04/15)"
 
-        df = df_dictionary[winter]
-
-        # Create a column for city color
-        df["CITY_COLOR"] = df["CITY"].apply(get_city_color)
-
         XY_title = f"ORR {winter} Frost (in) vs CDD {note}"
 
-        xyChart = create_chart_initial_cold_loading_vs_frost_depth(df, XY_title)
+        xyChart = create_chart_basic_cold_loading_vs_frost_depth(df, XY_title)
 
         try:
             xyChart = add_to_chart_hcurves_per_ft_frost(xyChart)
@@ -812,7 +790,7 @@ def create_chart_ely_aggregate(is_wasm):
     # Loop over years and cities
     for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         for city in ["ELY"]:
-            dfs.append(read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city))
+            dfs.append(read_df_cold_hot_loading_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city))
 
     # Concatenate all dataframes into one
     combined_df_ely = pd.concat(dfs)
@@ -1263,8 +1241,8 @@ def create_template_main():
     span_panel = create_chart_frost_span(wasm)
     freeze_thaw_charts_gridbox = create_chart_freeze_thaw(wasm)
     ely_aggregate_row = create_chart_ely_aggregate(wasm)
-    loading_charts_gridbox = create_chart_cold_loading(wasm)
-    loading_vs_frost_charts_gridbox = create_chart_cold_loading_vs_frost_depth(wasm)
+    # loading_charts_gridbox = create_chart_cold_loading(wasm)
+    # loading_vs_frost_charts_gridbox = create_chart_cold_loading_vs_frost_depth(wasm)
 
     top_row = pn.Row(depth_panel, span_panel)
 
@@ -1272,8 +1250,8 @@ def create_template_main():
         top_row,
         freeze_thaw_charts_gridbox,
         ely_aggregate_row,
-        loading_charts_gridbox,
-        loading_vs_frost_charts_gridbox,
+        # loading_charts_gridbox,
+        # loading_vs_frost_charts_gridbox,
     )
     return main_column
 
