@@ -63,7 +63,7 @@ def is_WASM() -> bool:
 #  LOGGING
 
 
-def get_logger(logger_name, log_file="app.log", log_level=logging.INFO):
+def get_logger(logger_name, filemode='w', log_file="app.log", log_level=logging.INFO):
     """Configure a common logger for the application"""
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
@@ -116,8 +116,6 @@ default_chart_height_px = 600
 
 today_color = "purple"
 incident_color = "orange"
-incidents_file_name = "incidents.csv"
-city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
 default_city_list = ["ELY", "ORR"]
 default_winter_list = [
     "2010-2011",
@@ -136,7 +134,7 @@ default_winter_list = [
 ]
 
 
-def empty_chart_placeholder():
+def create_pane_empty_chart():
     return pn.pane.Markdown(
         "Chart not available.",
         height=default_chart_height_px,
@@ -165,7 +163,6 @@ def get_data_processed_path_from_code_folder(fname):
     data_path = root_path.joinpath("data")
     processed_data_path = data_path.joinpath("2_processed")
     processed_file_path = processed_data_path.joinpath(fname)
-    logger.debug(f"Reading from file {processed_file_path}")
     return processed_file_path
 
 
@@ -191,7 +188,6 @@ def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
     fname = "config.ini"
     username = "denisecase"
     from_github = is_wasm
-    logger.info(f"Reading data from github: {from_github}")
     if from_github:
         try:
             url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/{fname}"
@@ -200,8 +196,6 @@ def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
             content = response.text
             config = configparser.ConfigParser()
             config.read_string(content)
-            logger.debug(f"Config file found at {url}")
-            logger.debug(f"Config file has sections: {config.sections()}")
             return config
         except requests.exceptions.HTTPError as e:
             logger.error(f"HTTP Error reading from {url}: {e}")
@@ -215,8 +209,6 @@ def read_config(is_wasm) -> Union[configparser.ConfigParser, None]:
             full_path = root_path.joinpath(fname)
             config = configparser.ConfigParser()
             config.read(full_path)
-            logger.debug(f"Config file found at {full_path}")
-            logger.debug(f"Config file has sections: {config.sections()}")
             return config
         except FileNotFoundError:
             logger.error(f"Error: Data file not found at {full_path}")
@@ -232,7 +224,6 @@ def read_data_processed_csv_to_df(is_WASM, fname):
     data_subfolder = "2_processed"
     username = "denisecase"
     from_github = is_WASM
-    logger.debug(f"Reading data from github: {from_github}")
     if from_github:
         try:
             url = f"https://raw.githubusercontent.com/{username}/{github_repo}/main/data/{data_subfolder}/{fname}"
@@ -247,8 +238,6 @@ def read_data_processed_csv_to_df(is_WASM, fname):
         try:
             full_path = get_data_processed_path_from_code_folder(fname)
             df = pd.read_csv(full_path)
-            logger.debug(f"Columns: {df.columns}")
-            logger.debug(f"Read {len(df)} rows from {full_path}")
             return df
         except FileNotFoundError:
             logger.error(f"Error: Data file not found at {full_path}")
@@ -265,7 +254,7 @@ def get_city_color(city):
     return city_colors.get(city.upper(), "black")
 
 
-def get_incident_days(winter_name):
+def get_incident_days_given_winter(winter_name):
     incidents = {
         "2021-2022": ["2022-03-31", "2022-04-23"],
         "2022-2023": ["2023-04-15"],
@@ -279,7 +268,7 @@ def get_incident_days(winter_name):
 def get_all_incident_days():
     incident_days = []
     for winter_name in ["2021-2022", "2022-2023"]:
-        incident_days.extend(get_incident_days(winter_name))
+        incident_days.extend(get_incident_days_given_winter(winter_name))
     return incident_days
 
 
@@ -296,45 +285,8 @@ def read_df_from_winter_and_city(is_wasm, yearString, cityString):
     return df
 
 
-def add_month_vline_overlays_to_chart(chart):
-    """Add month overlays to a chart"""
-    month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]
-    month_names = [
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-    ]
-
-    month_overlays = []
-
-    for i, month_start in enumerate(month_starts):
-        month_line = hv.VLine(month_start).opts(line_color="gray", line_width=1)
-        x_position = month_start + 15
-        y_position = 0
-        text = month_names[i]
-        month_text = hv.Text(x_position, y_position, text).opts(
-            text_font_size="8pt", align="center"
-        )
-        month_overlays.append(month_line * month_text)
-
-    month_overlay = hv.Overlay(month_overlays)
-    chart = chart * month_overlay
-
-    return chart
-
-
 def get_chart_overlays_vline_per_month(y_position=0.0):
     """Add month overlays to a chart"""
-    logger.info("CALLED get_chart_overlays_vline_per_month")
     month_starts = [0, 31, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336]
     month_names = [
         "Jul",
@@ -367,7 +319,6 @@ def get_chart_overlays_vline_per_month(y_position=0.0):
 
 def add_to_chart_vline_today(chart):
     """Add a vertical line for today to a chart"""
-    logger.info(f"CALLED add_to_chart_vline_today with {len(chart)} rows")
     now = datetime.now()
     today_days_after_Jul_1 = get_days_after_Jul_1_from_date_string(now)
     today_line = hv.VLine(today_days_after_Jul_1).opts(line_color=today_color, line_width=2)
@@ -377,7 +328,6 @@ def add_to_chart_vline_today(chart):
 
 def add_to_chart_vlines_all_incidents(chart):
     """Add vertical lines to indicate incident days to a chart"""
-    logger.info(f"CALLED add_to_chart_vlines_all_incidents with {len(chart)} rows")
     incident_days = get_all_incident_days()
     incident_vlines = [
         hv.VLine(day).opts(line_color=incident_color, line_width=2) for day in incident_days
@@ -388,8 +338,7 @@ def add_to_chart_vlines_all_incidents(chart):
 
 def add_to_chart_vlines_incidents_by_winter(chart, winter_name):
     """Add vertical lines to indicate incident days to the winter chart"""
-    logger.info("CALLED add_to_chart_vlines_incidents_by_winter")
-    incident_days = get_incident_days(winter_name)
+    incident_days = get_incident_days_given_winter(winter_name)
     incident_vlines = [
         hv.VLine(day).opts(line_color=incident_color, line_width=2) for day in incident_days
     ]
@@ -399,116 +348,114 @@ def add_to_chart_vlines_incidents_by_winter(chart, winter_name):
 
 def add_to_chart_hzones_caution_danger(chart):
     """Add horizontal areas for caution and danger zones to a chart"""
-    logger.info("CALLED add_to_chart_hzones_caution_danger")
+
     caution_level = max_cold_loading - 300
     danger_level = max_cold_loading - 100
 
-    caution_zone = hv.Area(
-        [
-            (min_season_day, caution_level),
-            (max_season_day, caution_level),
-            (max_season_day, danger_level),
-            (min_season_day, danger_level),
-        ],
-        vdims="y",
-        name="Caution Zone",
-    ).opts(fill_color="yellow", alpha=0.3)
+    try:
+        caution_area = hv.Area(
+            [
+                (min_season_day, caution_level),
+                (max_season_day, caution_level),
+                (max_season_day, danger_level),
+                (min_season_day, danger_level),
+            ],
+            vdims="y",
+            name="Caution Zone",
+        ).opts(fill_color="yellow", alpha=0.3)
 
-    danger_zone = hv.Area(
-        [
-            (min_season_day, danger_level),
-            (max_season_day, danger_level),
-            (max_season_day, max_cold_loading),
-            (min_season_day, max_cold_loading),
-        ],
-        vdims="y",
-        name="Danger Zone",
-    ).opts(fill_color="red", alpha=0.3)
+    except Exception as e:
+        logger.error(f"Error occurred while creating caution area: {e}")
+        raise ValueError("Failed to create caution area on CDD chart.")
 
-    chart = chart * caution_zone * danger_zone
+    try:
+        danger_area = hv.Area(
+            [
+                (min_season_day, danger_level),
+                (max_season_day, danger_level),
+                (max_season_day, max_cold_loading),
+                (min_season_day, max_cold_loading),
+            ],
+            vdims="y",
+            name="Danger Zone",
+        ).opts(fill_color="red", alpha=0.3)
+    except Exception as e:
+        logger.error(f"Error occurred while creating danger area: {e}")
+        raise ValueError("Failed to create danger area on CDD chart.")
+
+
+    try:
+        chart = chart * caution_area * danger_area
+    except Exception as e:
+        logger.error(f"Error adding caution and danger areas to CDD: {e}")
+        raise ValueError("Failed to create danger area on CDD chart.")
+
     return chart
-
 
 def create_chart_cold_loading(is_wasm):
     """Create a cold loading chart and a hot loading chart for each winter"""
-    logger.info(f"CALLED create_chart_cold_loading with is_wasm = {is_wasm}")
 
     try:
         df_dictionary = read_input_data_for_cold_hot_loading_to_df_dic_by_winter(is_wasm)
-        logger.info(
-            f"Read in dfs with length {len(df_dictionary)}  and keys {df_dictionary.keys()}"
-        )
     except Exception as e:
         logger.error(f"Error occurred while reading input data: {e}")
-        return empty_chart_placeholder()
+        return create_pane_empty_chart()
 
     charts = []
-    # TODO: COLD LOADING CHARTS
-    # for winter, df in df_dictionary.items():
-    #     try:
-    #         note = get_note_for_winter(winter)
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while creating chart for winter {winter}: {e}")
-    #         continue
+    for winter, df in df_dictionary.items():
 
-    #     try:
-    #         df = preprocess_data_cold_hot_loading(df)
-    #         logger.debug(f"got single winter df with length {len(df)}")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while preprocessing data for winter {winter}: {e}")
-    #         continue
+        note = get_note_for_winter(winter)
 
-    #     try:
-    #         figCold, figHot = create_cold_hot_loading_hvplot_charts(df, winter, note)
-    #         logger.debug("created figCold and figHot")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while creating cold and hot loading charts for winter {winter}: {e}")
-    #         continue
+        try: 
+            df = prepare_df_cold_hot_loading(df)
+        except Exception as e:
+            logger.error(f"Error occurred while prepare_df_cold_hot_loading for winter {winter}: {e}")
+            continue
 
-    #     try:
-    #         figCold = add_to_chart_vline_today(figCold)
-    #         figHot = add_to_chart_vline_today(figHot)
-    #         logger.debug("added vlines for today to both")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while adding vlines for today to charts for winter {winter}: {e}")
+        try: 
+            figCold, figHot = create_cold_hot_loading_hvplot_charts(df, winter, note)
+        except Exception as e:
+            logger.error(f"Error occurred creating CDD/HDD winter {winter}: {e}")
+            continue
 
-    #     try:
-    #         month_overlays = get_chart_overlays_vline_per_month()
-    #         month_overlay = hv.Overlay(month_overlays)
-    #         figCold = figCold * month_overlay
-    #         figHot = figHot * month_overlay
-    #         logger.debug("added vlines for months to both")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while adding vlines for months to charts for winter {winter}: {e}")
+        try: 
+            figCold = add_to_chart_vline_today(figCold)
+            figHot = add_to_chart_vline_today(figHot)
+        except Exception as e:
+            logger.error(f"Error adding vlines for today to CDD/HDD winter {winter}: {e}")
 
-    #     try:
-    #         figCold = add_to_chart_vlines_incidents_by_winter(figCold, winter)
-    #         logger.debug("added vlines for incidents to cold")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while adding vlines for incidents to cold chart for winter {winter}: {e}")
+        try: 
+            month_overlays = get_chart_overlays_vline_per_month()
+            month_overlay = hv.Overlay(month_overlays)
+            figCold = figCold * month_overlay
+            figHot = figHot * month_overlay
+        except Exception as e:
+            logger.error(f"Error adding vlines for months to CDD/HDD winter {winter}: {e}")
 
-    #     try:
-    #         figCold = add_to_chart_hzones_caution_danger(figCold)
-    #         logger.debug("added hzones to cold")
-    #     except Exception as e:
-    #         logger.error(f"Error occurred while adding caution and danger zones to cold chart for winter {winter}: {e}")
+        try: 
+            figCold = add_to_chart_vlines_incidents_by_winter(figCold, winter)
+        except Exception as e:
+            logger.error(f"Error adding vlines for incidents to CDD winter {winter}: {e}")
 
-    #     charts.append(pn.pane.HoloViews(figCold))
-    #     charts.append(pn.pane.HoloViews(figHot))
+        try: 
+            figCold = add_to_chart_hzones_caution_danger(figCold)
+        except Exception as e:
+            logger.error(f"Error adding caution / danger hzones to CDD winter {winter}: {e}")
+
+        charts.append(pn.pane.HoloViews(figCold))
+        charts.append(pn.pane.HoloViews(figHot))
 
     if charts:
         gridbox = pn.GridBox(*charts, ncols=2)
     else:
-        gridbox = empty_chart_placeholder()
+        gridbox = create_pane_empty_chart()
 
     return gridbox
 
 
 def read_input_data_for_cold_hot_loading_to_df_dic_by_winter(is_wasm):
     """Read input data files for each winter and return a dictionary of DataFrames"""
-    logger.info(
-        f"CALLED read_input_data_for_cold_hot_loading_to_df_dic_by_winter with is_wasm = {is_wasm}"
-    )
+
     df_dictionary = {}
     for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         yearly_dfs = []
@@ -517,14 +464,12 @@ def read_input_data_for_cold_hot_loading_to_df_dic_by_winter(is_wasm):
             df_temp = read_df_from_winter_and_city(is_wasm, winter, city)
             df_temp["CITY"] = city
             yearly_dfs.append(df_temp)
-            logger.debug(f"FINISHED reading visualization input files for {city}")
         df_dictionary[winter] = pd.concat(yearly_dfs)
     return df_dictionary
 
 
 def get_note_for_winter(name):
     """Return a note to add to the chart title for the given winter"""
-    logger.info(f"CALLED get_note_for_winter with name = {name}")
     if name == "2021-2022":
         return "(INCIDENT: 03/31, 04/23)"
     elif name == "2022-2023":
@@ -533,7 +478,7 @@ def get_note_for_winter(name):
         return ""
 
 
-def preprocess_data_cold_hot_loading(df):
+def prepare_df_cold_hot_loading(df):
     """Preprocess the input DataFrame and return the preprocessed DataFrame"""
     df["DATE"] = pd.to_datetime(df["DATE"])
     df["Days"] = (
@@ -546,39 +491,46 @@ def preprocess_data_cold_hot_loading(df):
 
 def create_cold_hot_loading_hvplot_charts(df, name, note):
     """Create and return hvPlot line charts for cumulative cold and hot degree days"""
-    logger.info(f"CALLED create_cold_hot_loading_hvplot_charts with name={name}, note={note}")
 
-    figCold = df.hvplot.line(
-        x="INDEX",
-        y="CUMM_COLD_F",
-        by="CITY",
-        title=f"Cumulative Freezing Degree-Days {name} {note}",
-        ylabel="Degree-Days below freezing",
-        xlabel="Days after July 1",
-        width=default_chart_width_px,
-        height=default_chart_height_px,
-        xlim=(min_season_day, max_season_day),
-        ylim=(min_cold_loading, max_cold_loading),
-        color="CITY_COLOR",
-    )
+    try:
+        figCold = df.hvplot.line(
+            x="INDEX",
+            y="CUMM_COLD_F",
+            by="CITY",
+            title=f"Cum. Freezing Cold Degree-Days (CDD) {name} {note}",
+            height=default_chart_height_px,
+            width=default_chart_width_px,
+            color="CITY_COLOR"
+        ).opts(
+            xlabel="Days after July 1",
+            ylabel="Cold-Degree-Days (CDD) below freezing",
+            xlim=(min_season_day, max_season_day),
+            ylim=(min_cold_loading, max_cold_loading),
+        )
+    except Exception as e:
+        logger.error(f"COLD LOADING CDD chart error {e}")
+        raise ValueError("Failed to create CDD chart.")
 
-    # Create an hvPlot line chart of cumulative hot degree days
-    figHot = df.hvplot.line(
-        x="INDEX",
-        y="CUMM_HOT_F",
-        by="CITY",
-        title=f"Cumulative Thaw Degree-Days {name}",
-        ylabel="Degree-Days above thawing",
-        xlabel="Days after July 1",
-        width=default_chart_width_px,
-        height=default_chart_height_px,
-        xlim=(min_season_day, max_season_day),
-        ylim=(min_hot_loading, max_hot_loading),
-        color="CITY_COLOR",
-    )
+    try:
+        figHot = df.hvplot.line(
+            x="INDEX",
+            y="CUMM_HOT_F",
+            by="CITY",
+            title=f"Cum. Thawing Hot Degree-Days (HDD) {name}",
+            height=default_chart_height_px,
+            width=default_chart_width_px,
+            color="CITY_COLOR",
+        ).opts(
+            xlabel="Days after July 1",
+            ylabel="Hot-Degree-Days (HDD) above thawing",
+            xlim=(min_season_day, max_season_day),
+            ylim=(min_hot_loading, max_hot_loading),
+        )
+    except Exception as e:
+        logger.error(f"HOT LOADING HDD chart error {e}")
+        raise ValueError("Failed to create HDD chart.")
 
     return figCold, figHot
-
 
 # CHART COLD LOADING VS FROST DEPTHS (ONE PER WINTER)
 
@@ -671,7 +623,7 @@ def create_chart_initial_cold_loading_vs_frost_depth(df, title_string):
         y="FROST_DEPTH_in",
         x="CUMM_COLD_F",
         title=title_string,
-        xlabel="Degree-Days below freezing",
+        xlabel="Cold-Degree-Days (CDD) below freezing",
         ylabel="FROST_DEPTH_in",
         width=default_chart_width_px,
         height=default_chart_height_px,
@@ -682,7 +634,7 @@ def create_chart_initial_cold_loading_vs_frost_depth(df, title_string):
     return chart
 
 
-def add_to_chart_best_fit_line_loading_vs_frost(figCold, df, winter):
+def add_to_chart_best_fit_line_loading_vs_frost(chart, df, winter, title_string):
     """Add a best-fit line to the chart"""
     # Remove rows with NaN values from the dataframe
     df = df.dropna()
@@ -693,7 +645,7 @@ def add_to_chart_best_fit_line_loading_vs_frost(figCold, df, winter):
 
     if len(X) <= 1:
         logger.warning(f"Not enough samples to fit linear regression for winter {winter}")
-        return figCold
+        return chart
 
     # Calculate slope and intercept using LinearRegression
     try:
@@ -701,33 +653,47 @@ def add_to_chart_best_fit_line_loading_vs_frost(figCold, df, winter):
         slope, intercept = model.coef_[0], model.intercept_
 
         # Create the best-fit line using the slope and intercept
-        best_fit_line = hv.Curve([(x, slope * x + intercept) for x in range(0, 4000)]).opts(
-            color="red", alpha=0.7
+        xmin = min_cold_loading
+        xmax = max_cold_loading
+        best_fit_line = hv.Curve([(x, slope * x + intercept) for x in range(xmin, xmax)]).opts(
+            color="blue", alpha=0.5
         )
 
-        # Add the best-fit line to the scatter chart
-        figCold = figCold * best_fit_line
+        # Add the best-fit line to the chart
+        chart = chart * best_fit_line
 
         # Add the equation to the chart title
-        figCold = figCold.opts(title=f"{title_string} (y = {slope:.2f}x + {intercept:.2f})")
+        chart = chart.opts(title=f"{title_string} [y = {slope:.2f}x + {intercept:.2f}]")
 
     except Exception as e:
         logger.error(f"Error occurred while creating best-fit line for winter {winter}: {e}")
 
-    return figCold
+    return chart
 
 
-def add_to_chart_hcurves_per_ft_frost(figCold):
+def add_to_chart_hcurves_per_ft_frost(chart):
     """Add horizontal lines for every 12 inches (1 foot) of frost depth to a chart"""
+    logger.debug(f"CALLING XY add_to_chart_hcurves_per_ft_frost")
+
+    ymin = min_frost_depth_in
+    ymax = max_frost_depth_in
+    x_range = (min_cold_loading, max_cold_loading)
+    # create a list of horizontal frost lines (curves) at 12 inch intervals
+    # using a list comprehension to generate a list of hv.Curve objects
     frost_lines = [
-        hv.Curve([(0, i), (4000, i)]).opts(color="gray", alpha=0.5) for i in range(12, 100, 12)
+        hv.Curve([(x_range[0], i), (x_range[1], i)]).opts(color="gray", alpha=0.2)
+        for i in range(ymin, ymax, 12)
     ]
-    figCold = figCold * hv.Overlay(frost_lines)
-    return figCold
+    chart = chart * hv.Overlay(frost_lines)
+    return chart
 
 
-def add_to_chart_y_tick_formatter_per_ft_of_frost(figCold):
+def add_to_chart_y_tick_formatter_per_ft_of_frost(scatter_chart):
     """Add custom y-axis tick formatter to the chart"""
+
+    # Set y_range explicitly to ensure that tick marks and lines appear at 1 ft (12 in) intervals
+    scatter_chart = scatter_chart.opts(ylim=(12, 96))
+
     # Create a custom tick formatter for the y-axis
     y_tick_formatter = FuncTickFormatter(
         code="""
@@ -737,14 +703,12 @@ def add_to_chart_y_tick_formatter_per_ft_of_frost(figCold):
     )
 
     # Apply the custom tick formatter to the y-axis
-    figCold = figCold.opts(opts.Scatter(yformatter=y_tick_formatter))
-    return figCold
+    scatter_chart = scatter_chart.opts(opts.Scatter(yformatter=y_tick_formatter))
+    return scatter_chart
 
 
-# TODO: FIX XY CHARTS
 def create_chart_cold_loading_vs_frost_depth(is_wasm):
     """Create a scatter chart each winter of cold loading chart vs frost depth"""
-    logger.info(f"CALLED create_chart_cold_loading_vs_frost_depth with is_wasm = {is_wasm}")
 
     df_dictionary = {}
 
@@ -755,7 +719,6 @@ def create_chart_cold_loading_vs_frost_depth(is_wasm):
         city = "ORR"
         df_temp = read_cold_loading_vs_frost_depth_from_winter_and_city(is_wasm, winter, city)
         yearly_dfs.append(df_temp)
-        logger.debug(f"FINISHED reading cold loading vs frost depth input files for {city}")
         df_dictionary[winter] = pd.concat(yearly_dfs)
 
     charts = []
@@ -771,31 +734,35 @@ def create_chart_cold_loading_vs_frost_depth(is_wasm):
         # Create a column for city color
         df["CITY_COLOR"] = df["CITY"].apply(get_city_color)
 
-        title_string = f"ORR {winter} Frost depth (in) vs Freezing Degree-Days {note}"
+        XY_title = f"ORR {winter} Frost (in) vs CDD {note}"
 
-        xyChart = create_chart_initial_cold_loading_vs_frost_depth(df, title_string)
+        xyChart = create_chart_initial_cold_loading_vs_frost_depth(df, XY_title)
 
-        # TODO: Add horizontal lines for every 12 inches (1 foot) of frost depth
-        # xyChart = add_to_chart_hcurves_per_ft_frost(xyChart)
+        try:
+            xyChart = add_to_chart_hcurves_per_ft_frost(xyChart)
+        except Exception as e:
+            logger.error(
+                f"Error XY charts while adding horizontal lines (curves) for winter {winter}: {e}"
+            )
 
-        # TODO: Add a best-fit line to the chart
-        # try:
-        #     xyChart = add_to_chart_best_fit_line_loading_vs_frost(xyChart, df, winter)
-        # except Exception as e:
-        #     logger.error(f"Error occurred while creating best-fit line for winter {winter}: {e}")
+        try:
+            xyChart = add_to_chart_best_fit_line_loading_vs_frost(xyChart, df, winter, XY_title)
+        except Exception as e:
+            logger.error(f"Error XY charts while creating best-fit line for winter {winter}: {e}")
 
-        # TODO: Add a y-axis tick formatter to the chart
         # try:
         #     xyChart = add_to_chart_y_tick_formatter_per_ft_of_frost(xyChart)
         # except Exception as e:
-        #     logger.error(f"Error occurred while adding y-axis tick formatter for winter {winter}: {e}")
+        #     logger.error(
+        #         f"Error XY charts while adding y-axis tick formatter for winter {winter}: {e}"
+        #     )
 
         charts.append(pn.pane.HoloViews(xyChart))
 
     if charts:
         gridbox = pn.GridBox(*charts, ncols=2)
     else:
-        gridbox = empty_chart_placeholder()
+        gridbox = create_pane_empty_chart()
 
     return gridbox
 
@@ -838,7 +805,6 @@ def plot_cumulative_data(names, cumulative_types):
 
 
 def create_chart_ely_aggregate(is_wasm):
-    logger.info(f"CALLED create_chart_ely_aggregate with is_wasm = {is_wasm}")
 
     dfs = []
     global combined_df_ely
@@ -847,7 +813,6 @@ def create_chart_ely_aggregate(is_wasm):
     for startYear in range(min_winter_start_year, max_winter_start_year + 1):
         for city in ["ELY"]:
             dfs.append(read_df_from_winter_and_city(is_wasm, f"{startYear}-{startYear+1}", city))
-            logger.debug(f"FINISHED reading visualization input files for {city}")
 
     # Concatenate all dataframes into one
     combined_df_ely = pd.concat(dfs)
@@ -908,12 +873,12 @@ def prepare_freeze_thaw_chart_points():
     """Prepare the freeze and thaw chart points and save them to a CSV file."""
     is_wasm = False  # only run this locally
     df = read_data_processed_csv_to_df(is_wasm, freeze_thaw_file_name)
-    df = prepare_freeze_thaw_df(df)
+    df = prepare_df_freeze_thaw(df)
     df.to_csv(get_data_processed_path_from_code_folder(freeze_thaw_file_name_out), index=False)
     logger.info(f"Saved file {freeze_thaw_file_name_out}")
 
 
-def prepare_freeze_thaw_df(df):
+def prepare_df_freeze_thaw(df):
     """Starts with County,Date,THAW_DEPTH_in,FROST_DEPTH_in,SECONDARY_FROST_DEPTH_in"""
     df = df.drop(columns=["SECONDARY_FROST_DEPTH_in"])
     df["Date"] = pd.to_datetime(df["Date"], format="%Y/%m/%d")
@@ -939,7 +904,6 @@ def prepare_freeze_thaw_df(df):
 
 def create_chart_freeze_thaw(is_wasm):
     """Create charts of freeze and thaw lines"""
-    logger.info(f"CALLED create_chart_freeze_thaw with is_wasm = {is_wasm}")
 
     df = read_data_processed_csv_to_df(is_wasm, freeze_thaw_file_name_out)
     grouped_df = df.groupby("Winter")
@@ -948,9 +912,7 @@ def create_chart_freeze_thaw(is_wasm):
     for winter, winter_df in grouped_df:
         winter_df = winter_df.sort_values(by=["days_after_Jul_1"])
         last_data_point_date = winter_df["Date"].max()
-        logger.debug(f"last_data_point_date: {last_data_point_date}")
         max_depth_in = winter_df["FROST_DEPTH_in"].max()
-        logger.debug(f"max_depth_in: {max_depth_in}")
 
         freeze_line = winter_df.hvplot.scatter(
             x="days_after_Jul_1",
@@ -1000,7 +962,7 @@ def create_chart_freeze_thaw(is_wasm):
     if charts is not None:
         gridbox = pn.GridBox(*charts, ncols=2)
     else:
-        gridbox = empty_chart_placeholder()
+        gridbox = create_pane_empty_chart()
     return gridbox
 
 
@@ -1015,11 +977,9 @@ def create_custom_colormap_frost_max_depth():
 
 def create_chart_frost_max_depth(is_wasm):
     """Create a chart of the max frost depth"""
-    logger.info(f"CALLED create_chart_cold_loading_vs_frost_depth with is_wasm = {is_wasm}")
 
     depth_file_name = "frost_depth.csv"
     df = read_data_processed_csv_to_df(is_wasm, depth_file_name)
-    logger.info("Creating frost depth chart for all winters.")
     if df is None:
         logger.error("Error: df for max frost depth is None")
         return None
@@ -1049,7 +1009,7 @@ def create_chart_frost_max_depth(is_wasm):
     # Add labels to each bar
     labels = hv.Labels(
         [
-            (val_x, val_y * 1.05, f"{val_y:.1f}")
+            (val_x, val_y * 1.05, f"{int(val_y)}")
             for val_x, val_y in zip(bars.data["Winter"], bars.data["Max_Frost_Depth_in"])
         ],
         kdims=["x", "y"],
@@ -1061,14 +1021,14 @@ def create_chart_frost_max_depth(is_wasm):
     if chart is not None:
         column = pn.Column(chart, sizing_mode="stretch_both")
     else:
-        column = empty_chart_placeholder()
+        column = create_pane_empty_chart()
     return column
 
 
 # CHART FROST SPAN
 
 
-def prepare_span_df(df):
+def prepare_df_frost_span(df):
     df["Frost_Start"] = pd.to_datetime(df["Frost_Start"], format="%Y/%m/%d")
     df["Frost_End"] = pd.to_datetime(df["Frost_End"], format="%Y/%m/%d")
     df["Duration_days"] = (df["Frost_End"] - df["Frost_Start"]).dt.days
@@ -1094,14 +1054,13 @@ def create_custom_colormap_frost_span():
 
 def create_chart_frost_span(is_wasm):
     """Create a chart of the frost span"""
-    logger.info(f"CALLED create_chart_frost_span with is_wasm = {is_wasm}")
 
     span_file_name = "frost_span.csv"
     df = read_data_processed_csv_to_df(is_wasm, span_file_name)
-    df = prepare_span_df(df)
+    df = prepare_df_frost_span(df)
     cmap = create_custom_colormap_frost_span()
 
-    segments = create_segments(df)
+    segments = create_hv_segments(df)
     chart = hv.Overlay(segments)
 
     chart = add_to_chart_vline_today(chart)
@@ -1120,12 +1079,12 @@ def create_chart_frost_span(is_wasm):
     if chart is not None:
         column = pn.Column(chart, sizing_mode="stretch_both")
     else:
-        column = empty_chart_placeholder()
+        column = create_pane_empty_chart()
     return column
 
 
-def create_segments(df):
-    segments = []
+def create_hv_segments(df):
+    hv_segments = []
     for idx, row in df.iterrows():
         start_text, end_text = create_text_overlays(row)
         segment_data = [
@@ -1144,8 +1103,8 @@ def create_segments(df):
             kdims=["x0", "y0", "x1", "y1"],
             vdims=["line_color", "start_date", "end_date"],
         )
-        segments.append(segment * start_text * end_text)
-    return segments
+        hv_segments.append(segment * start_text * end_text)
+    return hv_segments
 
 
 def create_text_overlays(row):
@@ -1168,67 +1127,65 @@ def create_text_overlays(row):
 
 # APP =======================================================
 
-title_string = "Freeze Tracker Dashboard"
-footer_string = "2023"
 
-
-def create_github_pane():
+def create_pane_github_icon():
     """Add a GitHub pane with icon and link to repository"""
-    github_pane = pn.pane.HTML(
+    icon_width_px = 30
+    icon_height_px = 30
+
+    pane = pn.pane.HTML(
         """
         <a href="https://github.com/denisecase/freeze-tracker" target="_blank">
             <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="30" height="30">
         </a>
         """,
-        width=30,
-        height=30,
+        width=icon_width_px,
+        height=icon_height_px,
     )
-    return github_pane
+    return pane
 
 
-def create_open_frost_thaw_url_pane():
+def create_pane_open_url_frost_thaw():
     pane = pn.pane.Markdown(
         '## [<span>Frost/Thaw (Orr, MN)</span>](https://www.dot.state.mn.us/loadlimits/frost-thaw/orr.html){target="_blank"}'
     )
     return pane
 
 
-def create_open_probabilities_url_pane():
+def create_pane_open_url_probabilities():
     pane = pn.pane.Markdown(
         '## [<span>Probabilites (Ely, old)</span>](https://files.dnr.state.mn.us/natural_resources/climate/normals/freeze_dates/USC00212543.pdf){target="_blank"}'
     )
     return pane
 
 
-def create_open_panel_url_pane():
+def create_pane_open_url_panel_docs():
     pane = pn.pane.Markdown(
         '## [<span>Explore Panel</span>](https://panel.holoviz.org/index.html){target="_blank"}'
     )
     return pane
 
 
-def create_today_pane():
-    logger.debug("CALLED create_today_pane()")
+def create_pane_showing_today():
     now = datetime.now()
     formatted_date = now.strftime("%b %d, %Y")
     pane = pn.pane.Markdown(f'<h2 style="color: {today_color};"> {formatted_date}</h2>')
     return pane
 
 
-def create_incident_pane(incident_date):
+def create_pane_showing_incident(incident_date):
     formatted_date = incident_date.strftime("%b %d, %Y")
     pane = pn.pane.Markdown(f"### {formatted_date}")
     return pane
 
 
-def create_incidents_row():
-    logger.debug("CALLED create_all_incidents_column")
+def create_row_all_incidents():
     incidents = [
         datetime(2022, 3, 31),
         datetime(2022, 4, 23),
         datetime(2023, 4, 15),
     ]
-    incident_panes = [create_incident_pane(incident) for incident in incidents]
+    incident_panes = [create_pane_showing_incident(incident) for incident in incidents]
 
     incidents_column = pn.Column(pn.pane.Markdown("## Incidents"), *incident_panes)
     return pn.Row(incidents_column)
@@ -1236,26 +1193,23 @@ def create_incidents_row():
 
 # CALL API OPEN WEATHER
 
-city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
-
 
 def get_current_temperature(is_wasm, city):
-    logger.info(f"get_current_temperature STARTED for {city} with is_wasm={is_wasm}")
+    city_lat_long = {"ELY": {"lat": 47.9, "lon": -91.86}, "ORR": {"lat": 48.05, "lon": -92.83}}
+
     lat = city_lat_long[city]["lat"]
     lon = city_lat_long[city]["lon"]
+
     config = read_config(is_wasm)
     config_section = "api"
     config_key = "OPEN_WEATHER_MAP_API_KEY"
     api_key = config.get(config_section, config_key)
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=imperial"
     logger.debug(f"Requesting temperature for {city}")
-    logger.debug(f"URL: {url}")
     response = requests.get(url)
     if response.status_code == 200:
         data = json.loads(response.text)
         temperature = data["main"]["temp"]
-        logger.info(f"Temperature for {city} is {temperature} F")
-        logger.info(f"get_current_temperature ENDED for {city}")
         return temperature
     else:
         logger.error(f"Error getting temperature for {city}")
@@ -1263,7 +1217,7 @@ def get_current_temperature(is_wasm, city):
         return None
 
 
-def create_current_temps_row():
+def create_row_current_temps():
     wasm = is_WASM()
     is_dev = False
     ely_current_temp = 0.0 if is_dev else get_current_temperature(wasm, "ELY")
@@ -1280,14 +1234,14 @@ def create_current_temps_row():
 def create_template_sidebar():
     logger.info("CALLED create_template_sidebar()")
 
-    today_pane = create_today_pane()
-    current_temps_row = create_current_temps_row()
-    incidents_row = create_incidents_row()
-    open_frost_thaw_url_pane = create_open_frost_thaw_url_pane()
-    open_probabilities_url_pane = create_open_probabilities_url_pane()
-    open_panel_url_pane = create_open_panel_url_pane()
+    today_pane = create_pane_showing_today()
+    current_temps_row = create_row_current_temps()
+    incidents_row = create_row_all_incidents()
+    open_frost_thaw_url_pane = create_pane_open_url_frost_thaw()
+    open_probabilities_url_pane = create_pane_open_url_probabilities()
+    open_panel_url_pane = create_pane_open_url_panel_docs()
 
-    sidebar = pn.Column(
+    sidebar_column = pn.Column(
         today_pane,
         current_temps_row,
         incidents_row,
@@ -1298,11 +1252,12 @@ def create_template_sidebar():
         max_width=150,
     )
 
-    return sidebar
+    return sidebar_column
 
 
 def create_template_main():
     logger.info("CALLED create_template_main")
+
     wasm = is_WASM()
     depth_panel = create_chart_frost_max_depth(wasm)
     span_panel = create_chart_frost_span(wasm)
@@ -1313,31 +1268,33 @@ def create_template_main():
 
     top_row = pn.Row(depth_panel, span_panel)
 
-    column = pn.Column(
+    main_column = pn.Column(
         top_row,
         freeze_thaw_charts_gridbox,
         ely_aggregate_row,
         loading_charts_gridbox,
         loading_vs_frost_charts_gridbox,
     )
-    return column
+    return main_column
 
 
 def create_dashboard():
     """Create a Panel dashboard."""
     logger.info("CALLED create_dashboard()")
 
+    title_string = "Freeze Tracker Dashboard"
     template_sidebar = create_template_sidebar()
     template_main = create_template_main()
+    header_extension_pane = create_pane_github_icon()
 
-    dashboard = pn.template.FastListTemplate(
+    panel_dashboard_template = pn.template.FastListTemplate(
         title=title_string,
         sidebar=template_sidebar,
         main=template_main,
-        header=create_github_pane(),  # Add the GitHub icon to the header
+        header=header_extension_pane,  # will be added to default header
     )
 
-    return dashboard
+    return panel_dashboard_template
 
 
 def main():
@@ -1347,9 +1304,8 @@ def main():
 
     dashboard = create_dashboard()
 
-    logger.info("Starting dashboard servable")
+    logger.info("Starting dashboard.servable")
     dashboard.servable()
-    # noqa
 
 
 main()
