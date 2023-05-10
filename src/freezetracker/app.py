@@ -1242,7 +1242,7 @@ def create_template_main():
     freeze_thaw_charts_gridbox = create_chart_freeze_thaw(wasm)
     ely_aggregate_row = create_chart_ely_aggregate(wasm)
     # loading_charts_gridbox = create_chart_cold_loading(wasm)
-    # loading_vs_frost_charts_gridbox = create_chart_cold_loading_vs_frost_depth(wasm)
+    loading_vs_frost_charts_gridbox = create_chart_cold_loading_vs_frost_depth(wasm)
 
     top_row = pn.Row(depth_panel, span_panel)
 
@@ -1251,7 +1251,7 @@ def create_template_main():
         freeze_thaw_charts_gridbox,
         ely_aggregate_row,
         # loading_charts_gridbox,
-        # loading_vs_frost_charts_gridbox,
+        loading_vs_frost_charts_gridbox,
     )
     return main_column
 
